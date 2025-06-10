@@ -1,0 +1,39 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{a4paper, margin=1.5in}
+
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+The Schrödinger equation is a second-order partial differential equation that describes the time evolution of a quantum system, represented by its wave function. It is given by:
+
+\begin{equation}
+    i \partial_t u(x,t) = \Delta u(x,t) + V(x,t) u(x,t),
+\end{equation}
+
+where $\Delta$ is the Laplacian operator, $V(x,t)$ is the potential, and $u(x,t)$ is the wave function. The weak form of the Schrödinger equation is given by:
+
+\begin{equation}
+    i \int_{\Omega} \left( \partial_t u \right) \bar{v} = \int_{\Omega} \nabla u \cdot \nabla \bar{v} + \int_{\Omega} V(x,t) u \bar{v},
+\end{equation}
+
+where $v := v(x,t)$ is a test function. Discretizing the time domain and approximating the time derivative with finite differences, we get:
+
+\begin{equation}
+    i \int_{\Omega} \left( \frac{u^{t + dt} - u^t}{dt} \right) \bar{v} = \int_{\Omega} \nabla u^{t + dt} \cdot \nabla \bar{v} + \int_{\Omega} V(x,t) u^t \bar{v}
+\end{equation}
+
+Rearranging, we get:
+
+\begin{equation}
+    i \int_{\Omega} u^{t + dt} \bar{v} - dt \int_{\Omega} \nabla u^{t + dt} \cdot \nabla \bar{v} = i \int_{\Omega} u^t \bar{v} + dt \int_{\Omega} V(x,t) u^t \bar{v},
+\end{equation}
+
+which can be solved iteratively using a time-stepping method.
+
+\end{document}

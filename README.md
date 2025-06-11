@@ -6,10 +6,10 @@
 
 3. After the container is created, wait for the dependencies to be installed.
 
-4. Run the `test_install.py` script to check if the installation is successful.
+4. Run the `test_installation.py` script to check if the installation is successful.
 
 ```bash
-python test_install.py
+python test_installation.py
 ```
 
 ## Complex mode
@@ -25,3 +25,16 @@ source /usr/local/bin/dolfinx-real-mode
 
 to switch between real and complex builds of DOLFINx/PETSc.
 
+## Known issues
+
+- After building and opening the container, the `Jupyter` kernels might not be available.
+
+## Workarounds and temporary fixes
+
+**Access remote Jupyter server in your local workspace**: Run the pre-built Docker container that has the kernels installed for `Jupyter Lab`.
+
+```bash
+docker run --init -ti -p 8888:8888 dolfinx/lab:stable
+```
+
+It will print a JupyterLab URL with a token in the logs (e.g., http://127.0.0.1:8888/lab?token=...). In your local workspace, click on `Select Kernel` -> `Existing Jupyter Server`, and paste the URL and token. You can then select the Dolfinx kernels from the list.

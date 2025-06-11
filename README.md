@@ -31,10 +31,10 @@ to switch between real and complex builds of DOLFINx/PETSc.
 
 ## Workarounds and temporary fixes
 
-**Access remote Jupyter server in your local workspace**: Run the pre-built Docker container that has the kernels installed for `Jupyter Lab`.
+**Access remote Jupyter server in your local workspace**: Run the pre-built Docker container that has the kernels installed for `JupyterLab` locally.
 
 ```bash
 docker run --init -ti -p 8888:8888 dolfinx/lab:stable
 ```
 
-It will print a JupyterLab URL with a token in the logs (e.g., http://127.0.0.1:8888/lab?token=...). In your local workspace, click on `Select Kernel` -> `Existing Jupyter Server`, and paste the URL and token. You can then select the Dolfinx kernels from the list.
+It will print a `JupyterLab` URL with a token in the logs (e.g., `http://127.0.0.1:8888/lab?token=...`). In your local workspace, open the `Jupyter Notebook` interface, click on `Select Kernel` -> `Existing Jupyter Server`, and paste the URL and token. You can then select the Dolfinx kernels from the list.

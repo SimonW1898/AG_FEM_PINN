@@ -9,7 +9,7 @@
 4. Run the `test_install.py` script to check if the installation is successful.
 
 ```bash
-python test_install.py
+python test_installation.py
 ```
 
 ## Complex mode

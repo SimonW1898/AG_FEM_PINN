@@ -1,28 +1,86 @@
 \documentclass{article}
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
-\usepackage{graphicx}
-\usepackage{geometry}
-\geometry{a4paper, margin=1.5in}
+% --------------------------------------------
+% Theorem Environments and Math Setup
+% --------------------------------------------
+\usepackage{amsthm}
+\usepackage{amsmath, amssymb}
+\usepackage{mathtools}
+\usepackage{bm}              % for bold math symbols
+\usepackage{bbm}             % for indicator functions and blackboard 1
+\usepackage{mathrsfs}        % for nice script letters
+\usepackage{upgreek}         % for upright greek letters like \upvarphi
+\usepackage{dsfont}          % for \mathds{1}
 
+% Theorem environments
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{Theorem}
+\newtheorem{lemma}[definition]{Lemma}
+\newtheorem{proposition}[definition]{Proposition}
+\newtheorem{corollary}[definition]{Corollary}
+
+\theoremstyle{remark}
+\newtheorem{remark}[definition]{Remark}
+\newtheorem{example}[definition]{Example}
+
+% Proof environment already included via amsthm
+% For "QED" symbol at end of proofs
+\renewcommand{\qedsymbol}{$\blacksquare$}
+
+% Shortcuts
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
+\newcommand{\scalar}[2]{\left\langle #1, #2 \right\rangle}
+
+% Domains and function spaces
+\newcommand{\Ltwo}{L^2(\Omega)}
+\newcommand{\Hone}{H^1(\Omega)}
+\newcommand{\Honezero}{H_0^1(\Omega)}
 \setlength{\parindent}{0pt}
 
 \begin{document}
 
-The Schrödinger equation is a second-order partial differential equation that describes the time evolution of a quantum system, represented by its wave function. It is given by:
+\section{Schrödinger Equation}
+The Schrödinger equation is a second-order partial differential equation that describes the time evolution of a quantum system, represented by its wave function. \\
+Let $\Omega \subset \mathbb{R}^n$ be a bounded Lipschitz domain and let $V : \Omega \times [0,T] \to \mathbb{R}$ be a given potential. We say that a function
+\[
+u : \Omega \times [0,T] \to \mathbb{C}
+\]
+is a \textbf{solution to the time-dependent Schrödinger equation} if it satisfies the following system of equations:
+\begin{align}
+    i \partial_t u(x,t) &= \Delta u(x,t) + V(x,t) u(x,t), \quad x \in \Omega, \ t > 0,\\
+    \partial_t u(x,0) &= u_0(x), \quad x \in \Omega,\\
+    \quad u(x,t) &= g(x,t), \quad x \in \Gamma_D, t>0,\\
+    \quad \partial_n u(x,t) &= h(x,t), \quad x \in \Gamma_N, t> 0.
+\end{align}
 
-\begin{equation}
-    i \partial_t u(x,t) = \Delta u(x,t) + V(x,t) u(x,t),
-\end{equation}
 
-where $\Delta$ is the Laplacian operator, $V(x,t)$ is the potential, and $u(x,t)$ is the wave function. The weak form of the Schrödinger equation is given by:
+where $\Delta$ is the Laplacian operator, $V(x,t)$ is the potential, and $u(x,t)$ is the wave function and the boundary of the domain is split into Dirichlet boundary $\Gamma_D$ and Neumann boundary $\Gamma_N$ (homogeneous Dirichlet?). 
+The initial condition is given by $u_0(x)$.
+
+\section{Weak Formulation of Schrödinger's Equation}
+$v$ is not needed to be in Sobolev space can also do other spaces but when is it elegant to do the transition to Sobolev spaces? \\
+Multiplying the Schrödinger equation by a test function $v(x,t) \in H_0^1(\Omega; \mathbb{C})$ and integrating over the domain $\Omega$, we obtain:
 
 \begin{equation}
     i \int_{\Omega} \left( \partial_t u \right) \bar{v} = \int_{\Omega} \nabla u \cdot \nabla \bar{v} + \int_{\Omega} V(x,t) u \bar{v},
 \end{equation}
 
-where $v := v(x,t)$ is a test function. Discretizing the time domain and approximating the time derivative with finite differences, we get:
+where $v := v(x,t)$ is a test function in $H_0^1(\Omega; \mathbb{C})$.
+
+\section{Time discretisation of Schrödinger's Equation}
+Using an implicit time discretisation scheme, we can rewrite the time derivative as:
+\begin{equation}
+    \partial_t u(x,t) \approx \frac{u^{t + dt} - u^t}{dt},
+\end{equation}
+The weak form of the Schrödinger equation becomes:
 
 \begin{equation}
     i \int_{\Omega} \left( \frac{u^{t + dt} - u^t}{dt} \right) \bar{v} = \int_{\Omega} \nabla u^{t + dt} \cdot \nabla \bar{v} + \int_{\Omega} V(x,t) u^t \bar{v}
@@ -35,5 +93,318 @@ Rearranging, we get:
 \end{equation}
 
 which can be solved iteratively using a time-stepping method.
+
+\paragraph{Sobolev Space with Complex Values}
+Let $\Omega \subset \mathbb{R}^d$ be a bounded Lipschitz domain. We define the complex Sobolev space
+\[
+H_0^1(\Omega; \mathbb{C}) := \left\{ u \in L^2(\Omega; \mathbb{C}) \ \middle| \ \nabla u \in L^2(\Omega; \mathbb{C}^d), \ u|_{\partial \Omega} = 0 \right\}.
+\]
+This space is equipped with the inner product
+\[
+\langle u, v \rangle_{H_0^1} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx,
+\]
+and the associated norm
+\[
+\|u\|_{H_0^1} := \sqrt{ \langle u, u \rangle_{H_0^1} }.
+\]
+
+
+\section{Lax-Milgram Theorem for complex Problems}
+\begin{theorem}
+[Lax-Milgram Theorem]
+Let $H$ be a complex Hilbert space with inner product $\langle \cdot, \cdot \rangle$ and norm $\| \cdot \|_H$. Let $a : H \times H \to \mathbb{C}$ be a sesquilinear form, i.e.,
+\[
+a(\cdot, v) \text{ is linear for all } v \in H, \quad a(u, \cdot) \text{ is conjugate-linear for all } u \in H.
+\]
+Suppose that:
+\begin{enumerate}
+    \item \textbf{Boundedness:} There exists $M > 0$ such that
+    \[
+    |a(u, v)| \leq M \|u\|_H \|v\|_H \quad \text{for all } u, v \in H.
+    \]
+    \item \textbf{Coercivity:} There exists $\alpha > 0$ such that
+    \[
+    \Re \, a(u, u) \geq \alpha \|u\|_H^2 \quad \text{for all } u \in H.
+    \]
+\end{enumerate}
+Then for every bounded linear functional $L \in H^*$, there exists a unique $u \in H$ such that
+\[
+a(u, v) = L(v) \quad \text{for all } v \in H.
+\]
+\end{theorem}
+
+
+\section{Apply Lax Milgram}
+Show that the left-hand side: $$a(u,v) = i \int_{\Omega} u^{t + dt} \bar{v} - dt \int_{\Omega} \nabla u^{t + dt} \cdot \nabla \bar{v}$$ is a sesquilinear form.
+And the right-hand side: $$L(v) = i \int_{\Omega} u^t \bar{v} + dt \int_{\Omega} V(x,t) u^t \bar{v}$$ is a bounded linear functional.
+\subsection{Scalar Product in $H_0^1(\Omega; \mathbb{C})$}
+We define the scalar product
+\[
+\langle u, v \rangle_{H_0^1} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx.
+\]
+This is a valid sesquilinear inner product because:
+\begin{itemize}
+  \item It is \textbf{linear} in the first argument: $\langle \lambda u_1 + \mu u_2, v \rangle = \lambda \langle u_1, v \rangle + \mu \langle u_2, v \rangle$ for all $\lambda, \mu \in \mathbb{C}$.
+  \item It is \textbf{conjugate-linear} in the second argument.
+  \item It is \textbf{Hermitian}: $\langle u, v \rangle = \overline{\langle v, u \rangle}$.
+  \item It is \textbf{positive-definite}: $\langle u, u \rangle = 0$ implies $u = 0$ in $H_0^1$.
+\end{itemize}
+Hence, $(H_0^1(\Omega; \mathbb{C}), \langle \cdot, \cdot \rangle_{H_0^1})$ is a Hilbert space.
+
+\subsection{Boundedness of the Sesquilinear Form.}
+\begin{lemma}[Boundedness of $a(u, v)$]
+Let $u, v \in H_0^1(\Omega; \mathbb{C})$, $V \in L^\infty(\Omega)$ and $\tau > 0$. Then the sesquilinear form $a(u, v)$ is bounded, i.e., there exists $M > 0$ such that
+\[
+|a(u, v)| \leq M \|u\|_{H_0^1} \|v\|_{H_0^1}.
+\]
+\end{lemma}
+
+\begin{proof}
+We estimate each term separately.
+
+\textbf{(1) Gradient term:}
+\[
+\left| \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx \right| \leq \|\nabla u\|_{L^2(\Omega)} \|\nabla v\|_{L^2(\Omega)}
+\quad \text{(by Cauchy-Schwarz in } L^2(\Omega; \mathbb{C}^d) \text{)}.
+\]
+
+\textbf{(2) Potential term:}
+Since $V \in L^\infty(\Omega)$, we have
+\[
+\left| \int_\Omega V(x) u \, \overline{v} \, dx \right|
+\leq \|V\|_{L^\infty(\Omega)} \|u\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}
+\quad \text{(by Hölder's inequality)}.
+\]
+
+\textbf{(3) Time discretization term:}
+\[
+\left| \int_\Omega \frac{i}{\tau} u \, \overline{v} \, dx \right|
+= \frac{1}{\tau} \left| \int_\Omega u \, \overline{v} \, dx \right|
+\leq \frac{1}{\tau} \|u\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}
+\quad \text{(again by Cauchy-Schwarz)}.
+\]
+
+\textbf{Combining all:}
+\[
+|a(u, v)| \leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2}
++ \|V\|_{L^\infty} \|u\|_{L^2} \|v\|_{L^2}
++ \frac{1}{\tau} \|u\|_{L^2} \|v\|_{L^2}.
+\]
+
+Now define the $H_0^1$-norm:
+\[
+\|u\|_{H_0^1}^2 := \|\nabla u\|_{L^2}^2 + \|u\|_{L^2}^2.
+\]
+
+Using the inequality $ab \leq \tfrac{1}{2}(a^2 + b^2)$ on each product, we estimate:
+\[
+|a(u, v)| \leq C \|u\|_{H_0^1} \|v\|_{H_0^1}
+\quad \text{with } C := \max\left\{1, \|V\|_{L^\infty} + \tfrac{1}{\tau} \right\}.
+\]
+\end{proof}
+
+
+\begin{lemma}[Coercivity of $a(u, u)$]
+Assume that the real-valued potential $V \in L^\infty(\Omega)$ satisfies
+\[
+V(x) \geq -C_V \quad \text{a.e. in } \Omega \quad \text{for some } C_V \geq 0.
+\]
+Then the sesquilinear form
+\[
+a(u, v) = \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega \left(V(x) + \frac{i}{\tau} \right) u \, \overline{v} \, dx
+\]
+is coercive on $H_0^1(\Omega; \mathbb{C})$, i.e., there exists $\alpha > 0$ such that
+\[
+\Re a(u, u) \geq \alpha \|u\|_{H_0^1}^2 \quad \forall u \in H_0^1(\Omega; \mathbb{C}).
+\]
+\end{lemma}
+
+\begin{proof}
+We compute the real part of $a(u,u)$:
+\begin{align*}
+\Re a(u, u)
+&= \Re \left( \int_\Omega |\nabla u|^2 \, dx + \int_\Omega \left(V(x) + \frac{i}{\tau} \right) |u|^2 \, dx \right) \\
+&= \int_\Omega |\nabla u|^2 \, dx + \int_\Omega V(x) |u|^2 \, dx.
+\end{align*}
+
+Since \( V(x) \geq -C_V \), we have:
+\[
+\int_\Omega V(x) |u|^2 \, dx \geq - C_V \int_\Omega |u|^2 \, dx.
+\]
+
+Therefore,
+\[
+\Re a(u, u) \geq \|\nabla u\|_{L^2(\Omega)}^2 - C_V \|u\|_{L^2(\Omega)}^2.
+\]
+
+By the Poincaré inequality (valid for \( u \in H_0^1(\Omega) \)):
+\[
+\|u\|_{L^2(\Omega)} \leq C_P \|\nabla u\|_{L^2(\Omega)}.
+\]
+
+Squaring and inserting:
+\[
+\Re a(u, u) \geq \|\nabla u\|_{L^2}^2 - C_V C_P^2 \|\nabla u\|_{L^2}^2 = \left(1 - C_V C_P^2\right) \|\nabla u\|_{L^2}^2.
+\]
+
+Now recall:
+\begin{align*}
+\|u\|_{H_0^1}^2 &= \|\nabla u\|_{L^2}^2 + \|u\|_{L^2}^2 \leq (1 + C_P^2) \|\nabla u\|_{L^2}^2 \\
+\Longrightarrow  \|\nabla u\|_{L^2}^2 &\geq \frac{1}{1 + C_P^2} \|u\|_{H_0^1}^2.
+\end{align*}
+
+Hence:
+\[
+\Re a(u, u) \geq \frac{1 - C_V C_P^2}{1 + C_P^2} \|u\|_{H_0^1}^2 =: \alpha \|u\|_{H_0^1}^2.
+\]
+
+So coercivity holds if \( C_V < \frac{1}{C_P^2} \). Otherwise, if this is not guaranteed, we can always modify the sesquilinear form (e.g., by adding a sufficiently large constant to \( V \)) to guarantee coercivity.
+
+\end{proof}
+
+\begin{lemma}[Boundedness of the linear form]
+Let $\psi^{n-1} \in L^2(\Omega; \mathbb{C})$ be given. Then the linear functional
+\[
+L(v) := \int_\Omega \frac{i}{\tau} \psi^{n-1}(x) \, \overline{v(x)} \, dx
+\]
+is bounded on $H_0^1(\Omega; \mathbb{C})$. That is, there exists a constant $C > 0$ such that
+\[
+|L(v)| \leq C \|v\|_{H_0^1(\Omega)} \quad \forall v \in H_0^1(\Omega; \mathbb{C}).
+\]
+\end{lemma}
+
+
+\begin{lemma}[Boundedness of the linear form]
+Let $u^{t-1} \in L^2(\Omega; \mathbb{C})$ and $V \in L^\infty(\Omega \times [0,T]; \mathbb{R})$. Define the linear form
+\[
+L(v) := i \int_\Omega u^{t-1}(x) \, \overline{v(x)} \, dx + \Delta t \int_\Omega V(x,t) \, u^{t-1}(x) \, \overline{v(x)} \, dx.
+\]
+Then there exists a constant $C > 0$ (depending on $\|u^{t-1}\|_{L^2}$ and $\|V\|_{L^\infty}$) such that
+\[
+|L(v)| \leq C \|v\|_{H_0^1(\Omega)} \quad \forall v \in H_0^1(\Omega; \mathbb{C}).
+\]
+\end{lemma}
+
+\begin{proof}
+We estimate each term separately using the Cauchy–Schwarz and Hölder inequalities.
+
+First term:
+\[
+\left| i \int_\Omega u^{t-1} \, \overline{v} \, dx \right| = \left| \int_\Omega u^{t-1} \, \overline{v} \, dx \right| \leq \|u^{t-1}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
+\]
+
+Second term:
+\[
+\left| \Delta t \int_\Omega V(x,t) u^{t-1}(x) \, \overline{v(x)} \, dx \right| \leq \Delta t \|V\|_{L^\infty(\Omega)} \|u^{t-1}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
+\]
+
+Combining both:
+\[
+|L(v)| \leq \left(1 + \Delta t \|V\|_{L^\infty(\Omega)}\right) \|u^{t-1}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
+\]
+
+Using the Poincaré inequality \( \|v\|_{L^2} \leq C_P \|v\|_{H_0^1} \), we conclude:
+\[
+|L(v)| \leq C \|v\|_{H_0^1(\Omega)}, \quad \text{with } C := C_P \left(1 + \Delta t \|V\|_{L^\infty(\Omega)}\right) \|u^{t-1}\|_{L^2(\Omega)}.
+\]
+
+Hence, \( L \) is bounded.
+\end{proof}
+
+
+\section{Solving the Schrödinger Equation with PINNs}
+Copilot:
+Physical Informed Neural Networks (PINNs) can be used to solve the Schrödinger equation by incorporating the physics of the problem into the training process. The neural network is trained to minimize a loss function that includes terms for the residual of the Schrödinger equation, initial conditions, and boundary conditions.
+\subsection*{Classical PINN Loss for the Schrödinger Equation}
+
+Let $u_\theta : \Omega \times [0,T] \to \mathbb{C}$ be a neural network approximation to the solution of the time-dependent Schrödinger equation
+\[
+i \, \partial_t u = -\Delta u + V(x,t) u.
+\]
+We define the residual function
+\[
+\mathcal{R}(x,t) := i \, \partial_t u_\theta(x,t) + \Delta u_\theta(x,t) - V(x,t) u_\theta(x,t).
+\]
+The classical PINN loss functional is then given by
+\begin{align*}
+\mathcal{L}_{\mathrm{PINN}}(\theta) =
+\lambda_{\mathrm{PDE}} \cdot \frac{1}{N_f} \sum_{j=1}^{N_f} \left| \mathcal{R}(x_j, t_j) \right|^2
++& \lambda_{\mathrm{IC}} \cdot \frac{1}{N_0} \sum_{j=1}^{N_0} \left| u_\theta(x_j, 0) - u_0(x_j) \right|^2\\
++& \lambda_{\mathrm{BC}} \cdot \frac{1}{N_b} \sum_{j=1}^{N_b} \left| u_\theta(x_j, t_j) \right|^2,    
+\end{align*}
+
+where:
+\begin{itemize}
+  \item $(x_j, t_j)$ are collocation points in $\Omega \times (0,T]$,
+  \item $u_0(x)$ is the given initial condition,
+  \item and $\lambda_{\mathrm{PDE}}, \lambda_{\mathrm{IC}}, \lambda_{\mathrm{BC}}$ are weighting parameters for PDE residual, initial condition, and boundary condition losses, respectively.
+\end{itemize}
+
+\subsection*{Energy-Based PINN Loss via Weak Formulation}
+
+We consider a time discretization with step size $\Delta t$ and define the semi-discrete Schrödinger equation via the backward Euler method:
+\[
+i \frac{u^t - u^{t-1}}{\Delta t} = -\Delta u^t + V(x,t) u^t.
+\]
+We define the bilinear form $a : H_0^1(\Omega; \mathbb{C}) \times H_0^1(\Omega; \mathbb{C}) \to \mathbb{C}$ and linear form $L^t : H_0^1(\Omega; \mathbb{C}) \to \mathbb{C}$ by
+\begin{align*}
+a(u, v) &:= \int_\Omega \left( \frac{i}{\Delta t} u \bar{v} + \nabla u \cdot \nabla \bar{v} + V(x,t) u \bar{v} \right) \, dx, \\
+L^t(v) &:= \int_\Omega \frac{i}{\Delta t} u^{t-1}(x) \bar{v}(x) \, dx.
+\end{align*}
+The energy-based loss at timestep $t$ is defined by
+\[
+\mathcal{L}_{\text{energy}}^t(\theta) := \left| a(u_\theta^t, v) - L^t(v) \right|^2,
+\]
+where $v \in H_0^1(\Omega; \mathbb{C})$ is a test function (e.g., $v = u_\theta^t$), or the quantity can be integrated over a set of test functions or points.
+
+The full loss over all timesteps is then
+\[
+\mathcal{L}_{\text{energy}}(\theta) := \frac{1}{N_t} \sum_{t=1}^{N_t} \mathcal{L}_{\text{energy}}^t(\theta)
++ \lambda_{\mathrm{IC}} \cdot \frac{1}{N_0} \sum_{j=1}^{N_0} \left| u_\theta(x_j, 0) - u_0(x_j) \right|^2
++ \lambda_{\mathrm{BC}} \cdot \frac{1}{N_b} \sum_{j=1}^{N_b} \left| u_\theta(x_j, t_j) \right|^2.
+\]
+
+
+
+\section{Problem 1: Schrödinger Equation on the Unit Square}
+
+We consider the time-dependent Schrödinger equation on the unit square $\Omega = (0,1)^2$ with homogeneous Dirichlet boundary conditions and zero potential:
+\begin{align*}
+i \, \partial_t u(x,t) &= -\Delta u(x,t), &&\text{in } \Omega \times (0,T), \\
+u(x,t) &= 0, &&\text{on } \partial \Omega \times (0,T), \\
+u(x,0) &= u_0(x), &&\text{in } \Omega.
+\end{align*}
+
+\subsubsection*{Analytical Solution}
+
+A known exact solution is given by the separable function
+\[
+u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t},
+\]
+which satisfies:
+\begin{itemize}
+  \item The homogeneous Dirichlet boundary conditions: $u(x,t) = 0$ on $\partial \Omega$ for all $t$,
+  \item The initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$,
+  \item The PDE:
+  \[
+  \Delta u = -2\pi^2 \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}, \quad
+  \partial_t u = -i 2\pi^2 \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t},
+  \]
+  hence
+  \[
+  i \, \partial_t u = -\Delta u.
+  \]
+\end{itemize}
+
+\subsubsection*{Summary of Parameters}
+\begin{itemize}
+  \item Domain: $\Omega = (0,1)^2$
+  \item Boundary conditions: $u = 0$ on $\partial \Omega$
+  \item Initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$
+  \item Potential: $V(x,t) = 0$
+  \item Exact solution: $u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}$
+\end{itemize}
+
+
 
 \end{document}

@@ -12,6 +12,9 @@ RUN apt-get update && \
 # Install PyTorch with GPU support
 RUN pip3 install torch torchvision torchaudio
 
+# Install numpy and matplotlib
+RUN pip3 install numpy matplotlib
+
 # # Duplicate the DOLFINx python install (experimental)
 RUN cp -r /dolfinx-env/share/jupyter/kernels/python3 /dolfinx-env/share/jupyter/kernels/python3-complex
 

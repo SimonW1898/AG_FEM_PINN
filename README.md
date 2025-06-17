@@ -12,7 +12,7 @@
 python test_installation.py
 ```
 
-## Complex mode
+**Complex mode:**
 
 - If you want to run `Jupyter Notebooks`, set the kernel in the top right corner of the notebook to be `dolfinx-env (Python 3.12.3)` (real mode) or `Python 3 (DOLFINx complex)` (complex mode).
 

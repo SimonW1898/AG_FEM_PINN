@@ -12,3 +12,6 @@ wheels/
 
 # Dolfinx Tutorial
 dolfinx-tutorial/
+
+*.png
+*.jpg

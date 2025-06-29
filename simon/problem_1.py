@@ -42,7 +42,9 @@ class HelmholtzProblem:
     def get_exact_solution(self):
         u_exact = dolfinx.fem.Function(self.V, dtype=np.complex128)
         # watch out here is a factor of 1j/(1j+2 * pi^2*dt) in the exact solution because when computing the error some constant value remains which is 2pi^2*dt
-        u_exact.interpolate(lambda x: np.sin(np.pi * x[0]) * np.sin(np.pi * x[1]) * np.exp(-1j * 2 * np.pi**2 * self.dt) * (1j/(1j + 2 * np.pi**2 * self.dt)))
+        # u_exact.interpolate(lambda x: np.sin(np.pi * x[0]) * np.sin(np.pi * x[1]) * np.exp(-1j * 2 * np.pi**2 * self.dt) * (1j/(1j + 2 * np.pi**2 * self.dt)))
+        u_exact.interpolate(lambda x: np.sin(np.pi * x[0]) * np.sin(np.pi * x[1])  * (1j/(1j + 2 * np.pi**2 * self.dt)))
+
         return u_exact
 
     def get_analytical_solution(self):
@@ -74,17 +76,38 @@ class HelmholtzProblem:
         return uh
     
     def print_results(self):
-        print("Problem with h = ", 1/self.nx, ", dt = ", self.dt, ", l2 corrected = ", self.l2_error, ", l2 = ", self.l2_error_analytical)
+        print("n = ", self.nx, ", dt = ", self.dt, ", l2 corrected = ", self.l2_error, ", l2 = ", self.l2_error_analytical)
 
 
 if __name__ == "__main__":
         
     # test the HelmholtzProblem class
-    nx, ny = 16, 16  # number of grid points in x and y direction
+    # nx, ny = 16, 16  # number of grid points in x and y direction
+    # T = 1.0  # total time
+    # nt = 100  # number of time steps
+    # helmholtz_problem = HelmholtzProblem(nx, ny, T, nt)
+
     T = 1.0  # total time
     nt = 100  # number of time steps
-    helmholtz_problem = HelmholtzProblem(nx, ny, T, nt)
+    spatial_resolution = np.array([16, 128, 256, 1024])
+    l2_errors = np.zeros_like(spatial_resolution, dtype=np.float64)
     
+    for i, n in enumerate(spatial_resolution):
+        helmholtz_problem = HelmholtzProblem(n, n, T, nt)
+        l2_errors[i] = helmholtz_problem.l2_error
+
+    # plot it
+    import matplotlib.pyplot as plt
+    plt.loglog(spatial_resolution, l2_errors, marker='o')
+    plt.xlabel('n')
+    plt.ylabel('L2 error')
+    plt.title('L2 error vs. spatial resolution')
+    plt.grid()
+    plt.show()
+    # save it 
+    plt.savefig("helmholtz_error.png")
+
+
     # # create mesh
     # n = 1000
     # nx, ny = n, n

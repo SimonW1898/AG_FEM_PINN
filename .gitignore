@@ -15,3 +15,5 @@ dolfinx-tutorial/
 
 *.png
 *.jpg
+
+*.log

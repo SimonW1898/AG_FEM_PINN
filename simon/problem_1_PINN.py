@@ -135,24 +135,6 @@ def sample_interior_points(num_points, T=0.1):
 
 
 
-
-# Training
-model = PINN(n_hidden=128)
-N_points = 15000
-x_b = sample_boundary_points(N_points, T)
-x_i = sample_initial_points(N_points)
-x_pde = sample_interior_points(N_points, T)
-
-optimizer = optim.Adam(
-    params=model.parameters(),
-    lr=0.001,
-    betas=(0.9, 0.999),
-    eps=1e-08,
-    weight_decay=0,
-    amsgrad=False
-)
-
-
 #  Plotting function
 def plot_model_output(model, t=0):
     x1 = np.linspace(0, 1, 100)
@@ -176,6 +158,34 @@ def plot_model_output(model, t=0):
     plt.savefig(f"model_output_t{t}.png")
     plt.close()
 
+def plot_loss_history(loss_history, epoch_history):
+    plt.plot(epoch_history, loss_history)
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Loss History')
+    plt.grid()
+    plt.savefig("loss_history.png")
+    plt.close()
+
+# Training
+n_hidden = 128
+model = PINN(n_hidden=n_hidden)
+N_points = 15000
+x_b = sample_boundary_points(N_points, T)
+x_i = sample_initial_points(N_points)
+x_pde = sample_interior_points(N_points, T)
+
+optimizer = optim.Adam(
+    params=model.parameters(),
+    lr=0.001,
+    betas=(0.9, 0.999),
+    eps=1e-08,
+    weight_decay=0,
+    amsgrad=False
+)
+
+
+
 epochs = 10000
 loss_history = []
 epoch_history = []
@@ -185,22 +195,21 @@ for epoch in range(epochs):
     loss = total_loss(model, x_b, x_i, x_pde)
     loss.backward()
     optimizer.step()
+    loss_history.append(loss.item())
+    epoch_history.append(epoch)
     if epoch % 200 == 0:
-        loss_history.append(loss.item())
-        epoch_history.append(epoch)
+
         print(f"Epoch {epoch}, Loss: {loss.item()}")
+        plot_loss_history(loss_history, epoch_history)
 
 print(f"Boundary Loss: {loss_boundary(model, x_b).item()}")
 print(f"Initial Condition Loss: {loss_initial(model, x_i).item()}")
 print(f"PDE Loss: {loss_physics(model, x_pde).item()}")
 
-plt.plot(epoch_history, loss_history)
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('Loss History')
-plt.grid()
-plt.savefig("loss_history.png")
-plt.close()
+plot_loss_history(loss_history, epoch_history)
 
 plot_model_output(model, t=0)
 plot_model_output(model, t=0.1)
+
+# Save the model with name n_hidden and epochs
+model_name = f"pinn_model_{n_hidden}_{epochs}.pt"

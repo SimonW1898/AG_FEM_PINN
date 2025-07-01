@@ -80,8 +80,12 @@ Using an implicit time discretisation scheme, we can rewrite the time derivative
 \begin{equation}
     \partial_t u(x,t) \approx \frac{u^{t + dt} - u^t}{dt},
 \end{equation}
-The weak form of the Schrödinger equation becomes:
+We need to choose what to handle implicit and explicit on the right hand side of the weak formulation.
+In the following, we will treat the term with the potential $V(x,t)$ explicitly and the term with the Laplacian implicitly.
+This simplifies the numerical treatment of the mass term, because the potential can introduce stiffness in the system, if it is large and has rapid variations.
 
+
+The weak form of the Schrödinger equation becomes:
 \begin{equation}
     i \int_{\Omega} \left( \frac{u^{t + dt} - u^t}{dt} \right) \bar{v} = \int_{\Omega} \nabla u^{t + dt} \cdot \nabla \bar{v} + \int_{\Omega} V(x,t) u^t \bar{v}
 \end{equation}
@@ -162,33 +166,25 @@ Let $u, v \in H_0^1(\Omega; \mathbb{C})$, $V \in L^\infty(\Omega)$ and $\tau > 0
 \begin{proof}
 We estimate each term separately.
 
-\textbf{(1) Gradient term:}
-\[
-\left| \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx \right| \leq \|\nabla u\|_{L^2(\Omega)} \|\nabla v\|_{L^2(\Omega)}
+\textbf{(1) Stiffness term:}
+\begin{align*}
+  \left| \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx \right| &\leq \int_\Omega |\nabla u| |\nabla \overline{v}| \, dx = \int_\Omega |\nabla u| |\nabla \overline{v}| \, dx = \int_\Omega |\nabla u| |\nabla v| \, dx \\
+  & \leq \|\nabla u\|_{L^2(\Omega)} \|\nabla v\|_{L^2(\Omega)}
 \quad \text{(by Cauchy-Schwarz in } L^2(\Omega; \mathbb{C}^d) \text{)}.
-\]
+\end{align*}
 
-\textbf{(2) Potential term:}
-Since $V \in L^\infty(\Omega)$, we have
-\[
-\left| \int_\Omega V(x) u \, \overline{v} \, dx \right|
-\leq \|V\|_{L^\infty(\Omega)} \|u\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}
-\quad \text{(by Hölder's inequality)}.
-\]
 
-\textbf{(3) Time discretization term:}
-\[
-\left| \int_\Omega \frac{i}{\tau} u \, \overline{v} \, dx \right|
-= \frac{1}{\tau} \left| \int_\Omega u \, \overline{v} \, dx \right|
-\leq \frac{1}{\tau} \|u\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}
-\quad \text{(again by Cauchy-Schwarz)}.
-\]
+\textbf{(2) Mass term:}
+\begin{align*}
+\left| \int_\Omega \frac{i}{\text{dt}} u \, \overline{v} \, dx \right|
+&= \frac{1}{\text{dt}} \left| \int_\Omega u \, \overline{v} \, dx \right| \leq \frac{1}{\text{dt}} \int_\Omega |u| |v| \, dx \\
+& \leq \frac{1}{\text{dt}} \|u\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)} \quad \text{(again by Cauchy-Schwarz)}.
+\end{align*}
 
-\textbf{Combining all:}
+\textbf{Combining both:}
 \[
 |a(u, v)| \leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2}
-+ \|V\|_{L^\infty} \|u\|_{L^2} \|v\|_{L^2}
-+ \frac{1}{\tau} \|u\|_{L^2} \|v\|_{L^2}.
++ \frac{1}{\text{dt}} \|u\|_{L^2} \|v\|_{L^2}.
 \]
 
 Now define the $H_0^1$-norm:
@@ -198,20 +194,16 @@ Now define the $H_0^1$-norm:
 
 Using the inequality $ab \leq \tfrac{1}{2}(a^2 + b^2)$ on each product, we estimate:
 \[
-|a(u, v)| \leq C \|u\|_{H_0^1} \|v\|_{H_0^1}
-\quad \text{with } C := \max\left\{1, \|V\|_{L^\infty} + \tfrac{1}{\tau} \right\}.
+|a(u, v)| \leq ||\nabla u\|_{L^2} \|\nabla v\|_{L^2} + \frac{1}{\text{dt}} \|u\|_{L^2} \|v\|_{L^2} \leq M \|u\|_{H_0^1} \|v\|_{H_0^1}
 \]
+where \( M = \max(1, \frac{1}{\text{dt}}) \) and therefore the sesquilinear form \( a(u, v) \) is bounded.
 \end{proof}
 
 
 \begin{lemma}[Coercivity of $a(u, u)$]
-Assume that the real-valued potential $V \in L^\infty(\Omega)$ satisfies
-\[
-V(x) \geq -C_V \quad \text{a.e. in } \Omega \quad \text{for some } C_V \geq 0.
-\]
 Then the sesquilinear form
 \[
-a(u, v) = \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega \left(V(x) + \frac{i}{\tau} \right) u \, \overline{v} \, dx
+a(u, v) = \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega  \frac{i}{\tau}  u \, \overline{v} \, dx
 \]
 is coercive on $H_0^1(\Omega; \mathbb{C})$, i.e., there exists $\alpha > 0$ such that
 \[
@@ -223,43 +215,22 @@ is coercive on $H_0^1(\Omega; \mathbb{C})$, i.e., there exists $\alpha > 0$ such
 We compute the real part of $a(u,u)$:
 \begin{align*}
 \Re a(u, u)
-&= \Re \left( \int_\Omega |\nabla u|^2 \, dx + \int_\Omega \left(V(x) + \frac{i}{\tau} \right) |u|^2 \, dx \right) \\
-&= \int_\Omega |\nabla u|^2 \, dx + \int_\Omega V(x) |u|^2 \, dx.
+&= \Re \left( \int_\Omega |\nabla u|^2 \, dx + \int_\Omega  \frac{i}{\text{dt}} |u|^2 \, dx \right) = \int_\Omega |\nabla u|^2 \, dx \\
+&= ||\nabla u||_{L^2(\Omega)}^2 \\
+% &\geq C \int_\Omega |u|^2 \, dx \quad \text{(by Poincaré inequality)}.\\
+% &= ||u||_{L^2(\Omega)}^2.
 \end{align*}
 
-Since \( V(x) \geq -C_V \), we have:
+By recalling the definition of the \(H_0^1\) norm:
 \[
-\int_\Omega V(x) |u|^2 \, dx \geq - C_V \int_\Omega |u|^2 \, dx.
+||u||_{H_0^1(\Omega)}^2 = ||\nabla u||_{L^2(\Omega)}^2 + ||u||_{L^2(\Omega)}^2,
 \]
-
-Therefore,
-\[
-\Re a(u, u) \geq \|\nabla u\|_{L^2(\Omega)}^2 - C_V \|u\|_{L^2(\Omega)}^2.
-\]
-
-By the Poincaré inequality (valid for \( u \in H_0^1(\Omega) \)):
-\[
-\|u\|_{L^2(\Omega)} \leq C_P \|\nabla u\|_{L^2(\Omega)}.
-\]
-
-Squaring and inserting:
-\[
-\Re a(u, u) \geq \|\nabla u\|_{L^2}^2 - C_V C_P^2 \|\nabla u\|_{L^2}^2 = \left(1 - C_V C_P^2\right) \|\nabla u\|_{L^2}^2.
-\]
-
-Now recall:
+we can transform achieve the coercivity condition by using the Poincaré inequality.
 \begin{align*}
-\|u\|_{H_0^1}^2 &= \|\nabla u\|_{L^2}^2 + \|u\|_{L^2}^2 \leq (1 + C_P^2) \|\nabla u\|_{L^2}^2 \\
-\Longrightarrow  \|\nabla u\|_{L^2}^2 &\geq \frac{1}{1 + C_P^2} \|u\|_{H_0^1}^2.
+  ||\nabla u||_{L^2(\Omega)}^2 &= \frac{1}{2} || \nabla u||_{L^2(\Omega)}^2 + \frac{1}{2} || \nabla u||_{L^2(\Omega)}^2\\
+  & \geq \frac{1}{2} ||u||_{L^2(\Omega)}^2 + \frac{1}{2} ||\nabla u||_{L^2(\Omega)}^2 \text{(by Poincaré inequality)} \\
+  & = \frac{1}{2} ||u||_{H_0^1(\Omega)}^2.
 \end{align*}
-
-Hence:
-\[
-\Re a(u, u) \geq \frac{1 - C_V C_P^2}{1 + C_P^2} \|u\|_{H_0^1}^2 =: \alpha \|u\|_{H_0^1}^2.
-\]
-
-So coercivity holds if \( C_V < \frac{1}{C_P^2} \). Otherwise, if this is not guaranteed, we can always modify the sesquilinear form (e.g., by adding a sufficiently large constant to \( V \)) to guarantee coercivity.
-
 \end{proof}
 
 \begin{lemma}[Boundedness of the linear form]

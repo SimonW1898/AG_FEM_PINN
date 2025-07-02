@@ -85,11 +85,13 @@ def update(frame):
     time_text.set_text(f'Time = {t:.2f}')
     return line_total, line_int, time_text
 
-# Create the animation
-# You may need to install ffmpeg to save the animation
-# On macOS: brew install ffmpeg
-# On Linux: sudo apt-get install ffmpeg
-ani = animation.FuncAnimation(fig, update, frames=range(400),
-                            init_func=init, blit=True, interval=20)
+if __name__ == "__main__":
 
-plt.show()
+    # Create the animation
+    # You may need to install ffmpeg to save the animation
+    # On macOS: brew install ffmpeg
+    # On Linux: sudo apt-get install ffmpeg
+    ani = animation.FuncAnimation(fig, update, frames=range(400),
+                                init_func=init, blit=True, interval=40)
+
+    plt.show()

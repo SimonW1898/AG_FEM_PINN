@@ -19,20 +19,20 @@ class HelmholtzProblem:
     def __init__(self, nx,ny, T, nt):
         self.nx = nx
         self.ny = ny
-        self.mesh = dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, nx, ny, dolfinx.mesh.CellType.triangle)
-        self.T = T
-        self.nt = nt
-        self.dt = T / nt
-        self.V = fem.functionspace(self.mesh, ("Lagrange", 1))
-        self.u_exact = self.get_exact_solution()
-        self.u_analytical = self.get_analytical_solution()
-        self.u = ufl.TrialFunction(self.V)
-        self.v = ufl.TestFunction(self.V)
-        self.A = self.get_bilinear_form()
-        self.L = self.get_linear_form()
-        self.bc = self.get_boundary_condition()
-        self.uh = self.solve_problem()
-        self.eh = self.uh - self.u_exact
+        self.mesh = dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, nx, ny, dolfinx.mesh.CellType.quadrilateral)
+        self.T = T # total time
+        self.nt = nt # number of time steps
+        self.dt = T / nt # time step size
+        self.V = fem.functionspace(self.mesh, ("Lagrange", 1)) # function space
+        self.u_exact = self.get_exact_solution() # exact solution
+        self.u_analytical = self.get_analytical_solution() # analytical solution
+        self.u = ufl.TrialFunction(self.V) # trial function
+        self.v = ufl.TestFunction(self.V) # test function
+        self.A = self.get_bilinear_form() # bilinear form
+        self.L = self.get_linear_form() # linear form
+        self.bc = self.get_boundary_condition() # boundary condition
+        self.uh = self.solve_problem() # numerical solution
+        self.eh = self.uh - self.u_exact # error
         self.eh_analytical = self.uh - self.u_analytical
         self.l2_error = np.sqrt(fem.assemble_scalar(fem.form(ufl.inner(self.eh, self.eh) * ufl.dx))).real
         self.l2_error_analytical = np.sqrt(fem.assemble_scalar(fem.form(ufl.inner(self.eh_analytical, self.eh_analytical) * ufl.dx))).real
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     # helmholtz_problem = HelmholtzProblem(nx, ny, T, nt)
 
     T = 1.0  # total time
-    nt = 100  # number of time steps
+    nt = 10000  # number of time steps
     spatial_resolution = np.array([16, 128, 256, 1024])
     l2_errors = np.zeros_like(spatial_resolution, dtype=np.float64)
     

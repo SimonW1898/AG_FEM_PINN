@@ -9,6 +9,8 @@ wheels/
 # Virtual environments
 .venv/lib/
 
+# Dev container files
+.devcontainer/
 
 # Dolfinx Tutorial
 dolfinx-tutorial/

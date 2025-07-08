@@ -26,3 +26,4 @@ dolfinx-tutorial/
 # sample points numpy files
 *.npz
 
+.gitignore

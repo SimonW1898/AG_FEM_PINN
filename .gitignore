@@ -19,3 +19,10 @@ dolfinx-tutorial/
 *.jpg
 
 *.log
+
+# PyTorch model files
+*.pt
+
+# sample points numpy files
+*.npz
+

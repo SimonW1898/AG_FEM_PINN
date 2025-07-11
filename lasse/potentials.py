@@ -7,7 +7,13 @@ from abc import ABC, abstractmethod
 class Potential(ABC):
     """
     Abstract base class for potential functions.
+    
     All potentials are defined on the domain [0,1] for both 1D and 2D.
+    The potentials are designed to be zero at the boundaries:
+    - 1D: V(0) = V(1) = 0
+    - 2D: V(0,0) = V(0,1) = V(1,0) = V(1,1) = 0
+    
+    This ensures appropriate boundary conditions for quantum mechanical problems.
     """
     
     def __init__(self, name: str):
@@ -130,120 +136,75 @@ class Potential(ABC):
 
 class QuadraticPotential(Potential):
     """
-    Quadratic potential: V(x) = k/2 * (x - x0)^2
-    In 2D: V(x,y) = kx/2 * (x - x0)^2 + ky/2 * (y - y0)^2
+    Quadratic potential: V(x) = a * ((x - 0.5)^2 - 0.25), such that the potential is zero at 0 and 1, and depth = a / 4 (positive)
+    In 2D: V(x,y) = a * ((x - 0.5)^2 + (y - 0.5)^2 - 0.5), such that the potential is zero at (0,0), (0,1), (1,0), (1,1), and depth = a / 2 (positive)
     """
     
     def __init__(self):
         super().__init__("Quadratic")
     
-    def _potential_function(self, *coords, k=1.0, center=None, kx=None, ky=None):
+    def _potential_function(self, *coords, depth):
         """
         Parameters:
-        - k: Spring constant (1D case)
-        - center: Center position (1D: float, 2D: tuple)
-        - kx, ky: Spring constants for x,y directions (2D case)
+        - depth: Depth of the potential (positive value)
+        
+        Returns:
+        - 1D: V(x) = 4*depth * ((x - 0.5)^2 - 0.25), zero at boundaries, minimum depth at center
+        - 2D: V(x,y) = 2*depth * ((x - 0.5)^2 + (y - 0.5)^2 - 0.5), zero at corners, minimum depth at center
         """
         if len(coords) == 1:  # 1D case
             x = coords[0]
-            x0 = center if center is not None else 0.5
-            return 0.5 * k * (x - x0)**2
+            a = 4 * depth
+            return a * ((x - 0.5)**2 - 0.25)
         
         elif len(coords) == 2:  # 2D case
             x, y = coords
-            if center is None:
-                x0, y0 = 0.5, 0.5
-            else:
-                x0, y0 = center
+            a = 2 * depth
             
-            kx_val = kx if kx is not None else k
-            ky_val = ky if ky is not None else k
-            
-            return 0.5 * kx_val * (x - x0)**2 + 0.5 * ky_val * (y - y0)**2
+            return a * ((x - 0.5)**2 + (y - 0.5)**2 - 0.5)
 
 
 class DoubleWellPotential(Potential):
     """
-    Double well potential: V(x) = a * (x - x0)^4 - b * (x - x0)^2
-    In 2D: V(x,y) = ax * (x - x0)^4 - bx * (x - x0)^2 + ay * (y - y0)^4 - by * (y - y0)^2
+    Double well potential: V(x) = a * ((x - 0.5)^4 - 0.25 * (x - 0.5)^2), such that the potential is zero at 0, 0.5 and 1, and depth = a / 64 (positive)
+    In 2D: V(x,y) = a * ((x - 0.5)^4 - 0.25 * (x - 0.5)^2 + (y - 0.5)^4 - 0.25 * (y - 0.5)^2), such that the potential is zero at (0,0), (0,1), (1,0), (1,1), and depth = a / 32 (positive)
     """
     
     def __init__(self):
         super().__init__("Double Well")
     
-    def _potential_function(self, *coords, a=1.0, b=1.0, center=None, ax=None, bx=None, ay=None, by=None):
+    def _potential_function(self, *coords, depth=1.0):
         """
         Parameters:
-        - a, b: Potential parameters (1D case)
-        - center: Center position (1D: float, 2D: tuple)
-        - ax, bx, ay, by: Potential parameters for x,y directions (2D case)
+        - depth: Depth of the potential wells (positive value, default=1.0)
+        
+        Returns:
+        - 1D: V(x) = 64*depth * ((x - 0.5)^4 - 0.25 * (x - 0.5)^2), zero at x=0, 0.5, 1 with wells at x≈0.146, 0.854
+        - 2D: V(x,y) = 32*depth * (sum of 1D terms), zero at corners and center, with 4 wells
         """
         if len(coords) == 1:  # 1D case
             x = coords[0]
-            x0 = center if center is not None else 0.5
-            # Shift and scale to make it work well in [0,1]
-            xi = (x - x0) * 2  # Scale to make wells visible
-            return a * xi**4 - b * xi**2
+            a = depth * 64
+            return a * ((x - 0.5)**4 - 0.25 * (x - 0.5)**2)
         
         elif len(coords) == 2:  # 2D case
             x, y = coords
-            if center is None:
-                x0, y0 = 0.5, 0.5
-            else:
-                x0, y0 = center
-            
-            # Use provided parameters or defaults
-            ax_val = ax if ax is not None else a
-            bx_val = bx if bx is not None else b
-            ay_val = ay if ay is not None else a
-            by_val = by if by is not None else b
-            
-            # Scale coordinates
-            xi = (x - x0) * 2
-            yi = (y - y0) * 2
-            
-            return (ax_val * xi**4 - bx_val * xi**2) + (ay_val * yi**4 - by_val * yi**2)
+            a = depth * 32
 
-
-class HarmonicOscillator2D(Potential):
-    """
-    2D Harmonic oscillator with possible coupling: V(x,y) = 1/2 * (kx*x^2 + ky*y^2 + kxy*x*y)
-    """
-    
-    def __init__(self):
-        super().__init__("2D Harmonic Oscillator")
-    
-    def _potential_function(self, *coords, kx=1.0, ky=1.0, kxy=0.0, center=None):
-        """
-        Parameters:
-        - kx, ky: Spring constants in x,y directions
-        - kxy: Coupling constant
-        - center: Center position (tuple)
-        """
-        if len(coords) == 1:
-            # 1D version - just harmonic oscillator
-            x = coords[0]
-            x0 = center if center is not None else 0.5
-            return 0.5 * kx * (x - x0)**2
-        
-        elif len(coords) == 2:  # 2D case
-            x, y = coords
-            if center is None:
-                x0, y0 = 0.5, 0.5
-            else:
-                x0, y0 = center
-            
-            dx = x - x0
-            dy = y - y0
-            
-            return 0.5 * (kx * dx**2 + ky * dy**2 + kxy * dx * dy)
+            return a * ((x - 0.5)**4 - 0.25 * (x - 0.5)**2 + (y - 0.5)**4 - 0.25 * (y - 0.5)**2)
 
 
 class CombinedPotential2D(Potential):
     """
     2D potential formed by combining two different 1D potentials:
     V(x,y) = V_x(x) + V_y(y)
-    where V_x and V_y can be different potential types
+    
+    This allows creating complex 2D potentials by combining simpler 1D components.
+    For example, combine a quadratic potential in x with a double well potential in y.
+    
+    Parameters for each direction are specified using prefixes:
+    - 'x_' prefix for x-direction potential parameters
+    - 'y_' prefix for y-direction potential parameters
     """
     
     def __init__(self, potential_x: Potential, potential_y: Potential):
@@ -258,8 +219,16 @@ class CombinedPotential2D(Potential):
     
     def _potential_function(self, *coords, **kwargs):
         """
-        Combine the two 1D potentials.
-        kwargs are passed to both potentials - use prefixes 'x_' and 'y_' to specify direction-specific parameters
+        Combine the two 1D potentials: V(x,y) = V_x(x) + V_y(y)
+        
+        Parameters:
+        - **kwargs: Parameters for the individual potentials
+          - Use 'x_' prefix for x-direction potential parameters (e.g., x_depth)
+          - Use 'y_' prefix for y-direction potential parameters (e.g., y_depth)
+          - Common parameters without prefix are passed to both potentials
+        
+        Example:
+        - combined.evaluate_2d(x, y, x_depth=4.0, y_depth=10.0)
         """
         if len(coords) == 1:
             raise ValueError("CombinedPotential2D only supports 2D evaluation")
@@ -296,45 +265,6 @@ class CombinedPotential2D(Potential):
         raise ValueError("CombinedPotential2D only supports 2D evaluation")
 
 
-# Convenience functions for easy access
-def create_quadratic_potential():
-    """Create a quadratic potential instance."""
-    return QuadraticPotential()
-
-def create_double_well_potential():
-    """Create a double well potential instance."""
-    return DoubleWellPotential()
-
-def create_harmonic_oscillator_2d():
-    """Create a 2D harmonic oscillator potential instance."""
-    return HarmonicOscillator2D()
-
-def create_combined_potential_2d(potential_x: Potential, potential_y: Potential):
-    """Create a 2D potential by combining two 1D potentials."""
-    return CombinedPotential2D(potential_x, potential_y)
-
-
-"""
-EXAMPLE: How to combine different 1D potentials into a 2D potential
-
-# Create individual 1D potentials
-quad = create_quadratic_potential()
-dwell = create_double_well_potential()
-
-# Combine them into a 2D potential: V(x,y) = V_quad(x) + V_dwell(y)
-combined = create_combined_potential_2d(quad, dwell)
-
-# Evaluate the combined potential
-V = combined.evaluate_2d(0.3, 0.7, 
-                        x_k=2.0, x_center=0.5,        # Parameters for quadratic in x
-                        y_a=1.0, y_b=2.0, y_center=0.5)  # Parameters for double well in y
-
-# Plot the combined potential
-combined.plot_2d(x_k=2.0, x_center=0.5, y_a=1.0, y_b=2.0, y_center=0.5)
-
-Note: Use prefixes 'x_' and 'y_' to specify parameters for each direction.
-"""
-
 # Example usage and testing
 if __name__ == "__main__":
     print("Testing Potential Classes")
@@ -342,26 +272,30 @@ if __name__ == "__main__":
     
     # Test Quadratic Potential
     print("1. Quadratic Potential")
-    quad = create_quadratic_potential()
+    quad = QuadraticPotential()
 
     # Plot 1D and 2D potentials
-    quad.plot_1d()
-    quad.plot_2d()
+    quad.plot_1d(depth=10.0)
+    quad.plot_2d(depth=10.0)
     
     # Test Double Well Potential
     print("\n2. Double Well Potential")
-    dwell = create_double_well_potential()
+    dwell = DoubleWellPotential()
 
     # Plot 1D and 2D potentials
-    dwell.plot_1d()
-    dwell.plot_2d()
+    dwell.plot_1d(depth=10.0)
+    dwell.plot_2d(depth=10.0)
 
     # Test Combined Potential 2D (Quadratic x + Double Well y)
-    print("\n4. Combined Potential 2D (Quadratic x + Double Well y)")
-    combined = create_combined_potential_2d(quad, dwell)
+    print("\n3. Combined Potential 2D (Quadratic x + Double Well y)")
+    combined = CombinedPotential2D(quad, dwell)
+    
+    # Example evaluation
+    V_test = combined.evaluate_2d(0.3, 0.7, x_depth=4.0, y_depth=10.0)
+    print(f"Combined potential at (0.3, 0.7): {V_test}")
 
     # Plot combined potential
-    print("\n5. Plotting Combined Potential")
-    combined.plot_2d(x_k=10.0, x_center=0.5, y_a=3.0, y_b=2.0, y_center=0.5)
+    print("\n4. Plotting Combined Potential")
+    combined.plot_2d(x_depth=5.0, y_depth=5.0)
     
     print("\nAll tests completed successfully!")

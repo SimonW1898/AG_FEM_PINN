@@ -194,6 +194,31 @@ class DoubleWellPotential(Potential):
             return a * ((x - 0.5)**4 - 0.25 * (x - 0.5)**2 + (y - 0.5)**4 - 0.25 * (y - 0.5)**2)
 
 
+class FlexibleDoubleWellPotential(Potential):
+    """
+    Double well potential: V(x) = a * (x - 0.5)^4 - b * (x - 0.5)^2 - 0.0625 * a + 0.25 * b, such that the potential is zero at 0 and 1.
+
+    """
+    
+    def __init__(self):
+        super().__init__("Double Well")
+    
+    def _potential_function(self, *coords, ratio=1.0, scale=1.0):
+        """
+        Parameters:
+        - a: Depth of the potential wells (positive value, default=1.0)
+        - b: Depth of the potential wells (positive value, default=1.0)
+        
+        Returns:
+        - 1D: V(x) = a * (x - 0.5)^4 - b * (x - 0.5)^2 - 0.0625 * a + 0.25 * b, zero at x=0, 1
+        """
+        b = 1.0
+        a = 4.0 * ratio * b
+        if len(coords) == 1:  # 1D case
+            x = coords[0]
+            return scale * 16 * (a * (x - 0.5)**4 - b * (x - 0.5)**2 - 0.0625 * a + 0.25 * b)
+
+
 class CombinedPotential2D(Potential):
     """
     2D potential formed by combining two different 1D potentials:
@@ -270,32 +295,39 @@ if __name__ == "__main__":
     print("Testing Potential Classes")
     print("=" * 40)
     
-    # Test Quadratic Potential
-    print("1. Quadratic Potential")
-    quad = QuadraticPotential()
+    # # Test Quadratic Potential
+    # print("1. Quadratic Potential")
+    # quad = QuadraticPotential()
+
+    # # Plot 1D and 2D potentials
+    # quad.plot_1d(depth=10.0)
+    # quad.plot_2d(depth=10.0)
+    
+    # # Test Double Well Potential
+    # print("\n2. Double Well Potential")
+    # dwell = DoubleWellPotential()
+
+    # # Plot 1D and 2D potentials
+    # dwell.plot_1d(depth=10.0)
+    # dwell.plot_2d(depth=10.0)
+
+    # # Test Combined Potential 2D (Quadratic x + Double Well y)
+    # print("\n3. Combined Potential 2D (Quadratic x + Double Well y)")
+    # combined = CombinedPotential2D(quad, dwell)
+    
+    # # Example evaluation
+    # V_test = combined.evaluate_2d(0.3, 0.7, x_depth=4.0, y_depth=10.0)
+    # print(f"Combined potential at (0.3, 0.7): {V_test}")
+
+    # # Plot combined potential
+    # print("\n4. Plotting Combined Potential")
+    # combined.plot_2d(x_depth=5.0, y_depth=5.0)
+
+    # Test Flexible Double Well Potential
+    print("\n5. Flexible Double Well Potential")
+    flex_dwell = FlexibleDoubleWellPotential()
 
     # Plot 1D and 2D potentials
-    quad.plot_1d(depth=10.0)
-    quad.plot_2d(depth=10.0)
-    
-    # Test Double Well Potential
-    print("\n2. Double Well Potential")
-    dwell = DoubleWellPotential()
-
-    # Plot 1D and 2D potentials
-    dwell.plot_1d(depth=10.0)
-    dwell.plot_2d(depth=10.0)
-
-    # Test Combined Potential 2D (Quadratic x + Double Well y)
-    print("\n3. Combined Potential 2D (Quadratic x + Double Well y)")
-    combined = CombinedPotential2D(quad, dwell)
-    
-    # Example evaluation
-    V_test = combined.evaluate_2d(0.3, 0.7, x_depth=4.0, y_depth=10.0)
-    print(f"Combined potential at (0.3, 0.7): {V_test}")
-
-    # Plot combined potential
-    print("\n4. Plotting Combined Potential")
-    combined.plot_2d(x_depth=5.0, y_depth=5.0)
+    flex_dwell.plot_1d(ratio=1.2, scale=1.0)
     
     print("\nAll tests completed successfully!")

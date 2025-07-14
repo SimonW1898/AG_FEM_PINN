@@ -43,6 +43,10 @@
 \newcommand{\Ltwo}{L^2(\Omega)}
 \newcommand{\Hone}{H^1(\Omega)}
 \newcommand{\Honezero}{H_0^1(\Omega)}
+
+% make command that \dt is \dt in math mode
+\newcommand{\dt}{\text{dt}}
+
 \setlength{\parindent}{0pt}
 
 \begin{document}
@@ -55,7 +59,7 @@ u : \Omega \times [0,T] \to \mathbb{C}
 \]
 is a \textbf{solution to the time-dependent Schrödinger equation} if it satisfies the following system of equations:
 \begin{align}
-    i \partial_t u(x,t) &= \Delta u(x,t) + V(x,t) u(x,t), \quad x \in \Omega, \ t > 0,\\
+    i \partial_t u(x,t) &= - \Delta u(x,t) + V(x,t) u(x,t), \quad x \in \Omega, \ t > 0,\\
     \partial_t u(x,0) &= u_0(x), \quad x \in \Omega,\\
     \quad u(x,t) &= g(x,t), \quad x \in \Gamma_D, t>0,\\
     \quad \partial_n u(x,t) &= h(x,t), \quad x \in \Gamma_N, t> 0.
@@ -70,7 +74,7 @@ $v$ is not needed to be in Sobolev space can also do other spaces but when is it
 Multiplying the Schrödinger equation by a test function $v(x,t) \in H_0^1(\Omega; \mathbb{C})$ and integrating over the domain $\Omega$, we obtain:
 
 \begin{equation}
-    i \int_{\Omega} \left( \partial_t u \right) \bar{v} = \int_{\Omega} \nabla u \cdot \nabla \bar{v} + \int_{\Omega} V(x,t) u \bar{v},
+    i \int_{\Omega} \left( \partial_t u \right) \bar{v} \, dx = - \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u \bar{v} \, dx,
 \end{equation}
 
 where $v := v(x,t)$ is a test function in $H_0^1(\Omega; \mathbb{C})$.
@@ -78,7 +82,7 @@ where $v := v(x,t)$ is a test function in $H_0^1(\Omega; \mathbb{C})$.
 \section{Time discretisation of Schrödinger's Equation}
 Using an implicit time discretisation scheme, we can rewrite the time derivative as:
 \begin{equation}
-    \partial_t u(x,t) \approx \frac{u^{t + dt} - u^t}{dt},
+    \partial_t u(x,t) \approx \frac{u^{t + \dt} - u^t}{\dt},
 \end{equation}
 We need to choose what to handle implicit and explicit on the right hand side of the weak formulation.
 In the following, we will treat the term with the potential $V(x,t)$ explicitly and the term with the Laplacian implicitly.
@@ -87,16 +91,19 @@ This simplifies the numerical treatment of the mass term, because the potential 
 
 The weak form of the Schrödinger equation becomes:
 \begin{equation}
-    i \int_{\Omega} \left( \frac{u^{t + dt} - u^t}{dt} \right) \bar{v} = \int_{\Omega} \nabla u^{t + dt} \cdot \nabla \bar{v} + \int_{\Omega} V(x,t) u^t \bar{v}
+    i \int_{\Omega} \left( \frac{u^{t + \dt} - u^t}{\dt} \right) \bar{v} \, dx = - \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u^{t+\dt} \bar{v} \, dx
 \end{equation}
 
 Rearranging, we get:
 
 \begin{equation}
-    i \int_{\Omega} u^{t + dt} \bar{v} - dt \int_{\Omega} \nabla u^{t + dt} \cdot \nabla \bar{v} = i \int_{\Omega} u^t \bar{v} + dt \int_{\Omega} V(x,t) u^t \bar{v},
+    i \int_{\Omega} u^{t + \dt} \bar{v} - \dt \int_{\Omega}  u^{t+\dt} \bar{v} V(x,t)  \, dx + \dt \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} = i \int_{\Omega} u^t \bar{v} \, dx ,
 \end{equation}
 
 which can be solved iteratively using a time-stepping method.
+
+% make note in red that i describe u and v dependent of x,t and t+dt is next timestep
+Note: In the following, we will denote the dependence of $u$ and $v$ on $x$ and $t$ explicitly, while $t + \dt$ refers to the next time step.
 
 \paragraph{Sobolev Space with Complex Values}
 Let $\Omega \subset \mathbb{R}^d$ be a bounded Lipschitz domain. We define the complex Sobolev space
@@ -122,9 +129,13 @@ a(\cdot, v) \text{ is linear for all } v \in H, \quad a(u, \cdot) \text{ is conj
 \]
 Suppose that:
 \begin{enumerate}
-    \item \textbf{Boundedness:} There exists $M > 0$ such that
+    \item \textbf{Boundedness of the sesquilinear form:} There exists $M > 0$ such that
     \[
     |a(u, v)| \leq M \|u\|_H \|v\|_H \quad \text{for all } u, v \in H.
+    \]
+    \item \textbf{Boundedness of the linear form:} There exists $C > 0$ such that
+    \[
+    |L(v)| \leq C \|v\|_H \quad \text{for all } v \in H.
     \]
     \item \textbf{Coercivity:} There exists $\alpha > 0$ such that
     \[
@@ -139,8 +150,9 @@ a(u, v) = L(v) \quad \text{for all } v \in H.
 
 
 \section{Apply Lax Milgram}
-Show that the left-hand side: $$a(u,v) = i \int_{\Omega} u^{t + dt} \bar{v} - dt \int_{\Omega} \nabla u^{t + dt} \cdot \nabla \bar{v}$$ is a sesquilinear form.
-And the right-hand side: $$L(v) = i \int_{\Omega} u^t \bar{v} + dt \int_{\Omega} V(x,t) u^t \bar{v}$$ is a bounded linear functional.
+Show that the left-hand side: 
+$$a(u,v) = \frac{i}{\dt} \int_{\Omega} u^{t + \dt} \bar{v} -  \int_{\Omega} V(x,t) u^{t + \dt} \bar{v} + \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v}$$ is a sesquilinear form.
+And the right-hand side: $$L(v) = \frac{i}{\dt} \int_{\Omega} u^t \bar{v}  $$ is a bounded linear functional.
 \subsection{Scalar Product in $H_0^1(\Omega; \mathbb{C})$}
 We define the scalar product
 \[
@@ -155,7 +167,7 @@ This is a valid sesquilinear inner product because:
 \end{itemize}
 Hence, $(H_0^1(\Omega; \mathbb{C}), \langle \cdot, \cdot \rangle_{H_0^1})$ is a Hilbert space.
 
-\subsection{Boundedness of the Sesquilinear Form.}
+\subsection{Boundedness of the Sesquilinear and Linear Form.}
 \begin{lemma}[Boundedness of $a(u, v)$]
 Let $u, v \in H_0^1(\Omega; \mathbb{C})$, $V \in L^\infty(\Omega)$ and $\tau > 0$. Then the sesquilinear form $a(u, v)$ is bounded, i.e., there exists $M > 0$ such that
 \[
@@ -164,6 +176,10 @@ Let $u, v \in H_0^1(\Omega; \mathbb{C})$, $V \in L^\infty(\Omega)$ and $\tau > 0
 \end{lemma}
 
 \begin{proof}
+By triangle inequality, we can split the sesquilinear form into three terms:
+\[
+|a(u, v)| \leq |\int_\Omega \nabla u \cdot \nabla \overline{v} \, dx| + \left| \frac{i}{\dt} \int_\Omega u \, \overline{v} \, dx \right| + \left| \int_\Omega V(x,t) u^{t + \dt} \bar{v} \, dx \right|.
+\]
 We estimate each term separately.
 
 \textbf{(1) Stiffness term:}
@@ -176,67 +192,93 @@ We estimate each term separately.
 
 \textbf{(2) Mass term:}
 \begin{align*}
-\left| \int_\Omega \frac{i}{\text{dt}} u \, \overline{v} \, dx \right|
-&= \frac{1}{\text{dt}} \left| \int_\Omega u \, \overline{v} \, dx \right| \leq \frac{1}{\text{dt}} \int_\Omega |u| |v| \, dx \\
-& \leq \frac{1}{\text{dt}} \|u\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)} \quad \text{(again by Cauchy-Schwarz)}.
+\left| \int_\Omega \frac{i}{\dt} u \, \overline{v} \, dx \right|
+&= \frac{1}{\dt} \left| \int_\Omega u \, \overline{v} \, dx \right| \leq \frac{1}{\dt} \int_\Omega |u| |v| \, dx \\
+& \leq \frac{1}{\dt} \|u\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)} \quad \text{(again by Cauchy-Schwarz)}.
 \end{align*}
 
-\textbf{Combining both:}
-\[
-|a(u, v)| \leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2}
-+ \frac{1}{\text{dt}} \|u\|_{L^2} \|v\|_{L^2}.
-\]
 
-Now define the $H_0^1$-norm:
+\textbf{(3) Potential term:}
+\begin{align*}
+\left| \int_\Omega V(x,t) u^{t + \dt} \bar{v} \, dx \right| &\leq \|V\|_{L^\infty(\Omega \times [0,T])} \int_\Omega |u^{t + \dt}| |\bar{v}| \, dx \\
+&\leq \|V\|_{L^\infty(\Omega \times [0,T])} \|u^{t + \dt}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
+\end{align*}
+
+\textbf{Combining all terms:}
+\begin{align*}
+|a(u, v)| &\leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2} + \frac{1}{\dt} \|u\|_{L^2} \|v\|_{L^2} + \|V\|_{L^\infty} \|u^{t + \dt}\|_{L^2} \|v\|_{L^2}\\
+& \leq M \left( \|\nabla u\|_{L^2} \|\nabla v\|_{L^2} + \|u\|_{L^2} \|v\|_{L^2} \right),
+\end{align*}
+where \( M = \max\left(1, \frac{1}{\dt} + \|V\|_{L^\infty}\right) \).
+
+% \[
+% |a(u, v)| \leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2}
+% + \frac{1}{\dt} \|u\|_{L^2} \|v\|_{L^2}.
+% \]
+
+Recalling the definition of the \(H_0^1\) norm:
 \[
 \|u\|_{H_0^1}^2 := \|\nabla u\|_{L^2}^2 + \|u\|_{L^2}^2.
 \]
+We obtain the desired estimate:
+$$|a(u, v)| \leq M \|u\|_{H_0^1} \|v\|_{H_0^1},$$
 
-Using the inequality $ab \leq \tfrac{1}{2}(a^2 + b^2)$ on each product, we estimate:
-\[
-|a(u, v)| \leq ||\nabla u\|_{L^2} \|\nabla v\|_{L^2} + \frac{1}{\text{dt}} \|u\|_{L^2} \|v\|_{L^2} \leq M \|u\|_{H_0^1} \|v\|_{H_0^1}
-\]
-where \( M = \max(1, \frac{1}{\text{dt}}) \) and therefore the sesquilinear form \( a(u, v) \) is bounded.
+where \( M = \max\left(1, \frac{1}{\dt} + \|V\|_{L^\infty}\right) \).
 \end{proof}
+% \[
+% |a(u, v)| \leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2}
+% + \frac{1}{\dt} \|u\|_{L^2} \|v\|_{L^2}.
+% \]
 
+% Recalling the definition of the \(H_0^1\) norm:
+% \[
+% \|u\|_{H_0^1}^2 := \|\nabla u\|_{L^2}^2 + \|u\|_{L^2}^2.
+% \]
+% \[
+% a(u, v) = \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega  \frac{i}{\tau}  u \, \overline{v} \, dx
+% \]
+% is coercive on $H_0^1(\Omega; \mathbb{C})$, i.e., there exists $\alpha > 0$ such that
+% \[
+% \Re a(u, u) \geq \alpha \|u\|_{H_0^1}^2 \quad \forall u \in H_0^1(\Omega; \mathbb{C}).
+% \]
 
-\begin{lemma}[Coercivity of $a(u, u)$]
-Then the sesquilinear form
-\[
-a(u, v) = \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega  \frac{i}{\tau}  u \, \overline{v} \, dx
-\]
-is coercive on $H_0^1(\Omega; \mathbb{C})$, i.e., there exists $\alpha > 0$ such that
-\[
-\Re a(u, u) \geq \alpha \|u\|_{H_0^1}^2 \quad \forall u \in H_0^1(\Omega; \mathbb{C}).
-\]
-\end{lemma}
+% \begin{proof}
+% We compute the real part of $a(u,u)$:
+% \begin{align*}
+% \Re a(u, u)
+% &= \Re \left( \int_\Omega |\nabla u|^2 \, dx + \int_\Omega  \frac{i}{\dt} |u|^2 \, dx \right) = \int_\Omega |\nabla u|^2 \, dx \\
+% &= ||\nabla u||_{L^2(\Omega)}^2 \\
+% % &\geq C \int_\Omega |u|^2 \, dx \quad \text{(by Poincaré inequality)}.\\
+% % &= ||u||_{L^2(\Omega)}^2.
+% \end{align*}
 
-\begin{proof}
-We compute the real part of $a(u,u)$:
-\begin{align*}
-\Re a(u, u)
-&= \Re \left( \int_\Omega |\nabla u|^2 \, dx + \int_\Omega  \frac{i}{\text{dt}} |u|^2 \, dx \right) = \int_\Omega |\nabla u|^2 \, dx \\
-&= ||\nabla u||_{L^2(\Omega)}^2 \\
-% &\geq C \int_\Omega |u|^2 \, dx \quad \text{(by Poincaré inequality)}.\\
-% &= ||u||_{L^2(\Omega)}^2.
-\end{align*}
+% By recalling the definition of the \(H_0^1\) norm:
+% \[
+% ||u||_{H_0^1(\Omega)}^2 = ||\nabla u||_{L^2(\Omega)}^2 + ||u||_{L^2(\Omega)}^2,
+% \]
+% we can transform achieve the coercivity condition by using the Poincaré inequality.
+% \begin{align*}
+%   ||\nabla u||_{L^2(\Omega)}^2 &= \frac{1}{2} || \nabla u||_{L^2(\Omega)}^2 + \frac{1}{2} || \nabla u||_{L^2(\Omega)}^2\\
+%   & \geq \frac{1}{2} ||u||_{L^2(\Omega)}^2 + \frac{1}{2} ||\nabla u||_{L^2(\Omega)}^2 \text{(by Poincaré inequality)} \\
+%   & = \frac{1}{2} ||u||_{H_0^1(\Omega)}^2.
+% \end{align*}
+% \end{proof}
 
-By recalling the definition of the \(H_0^1\) norm:
-\[
-||u||_{H_0^1(\Omega)}^2 = ||\nabla u||_{L^2(\Omega)}^2 + ||u||_{L^2(\Omega)}^2,
-\]
-we can transform achieve the coercivity condition by using the Poincaré inequality.
-\begin{align*}
-  ||\nabla u||_{L^2(\Omega)}^2 &= \frac{1}{2} || \nabla u||_{L^2(\Omega)}^2 + \frac{1}{2} || \nabla u||_{L^2(\Omega)}^2\\
-  & \geq \frac{1}{2} ||u||_{L^2(\Omega)}^2 + \frac{1}{2} ||\nabla u||_{L^2(\Omega)}^2 \text{(by Poincaré inequality)} \\
-  & = \frac{1}{2} ||u||_{H_0^1(\Omega)}^2.
-\end{align*}
-\end{proof}
+% \begin{lemma}[Boundedness of the linear form]
+% Let $\psi^{n-1} \in L^2(\Omega; \mathbb{C})$ be given. Then the linear functional
+% \[
+% L(v) := \int_\Omega \frac{i}{\tau} \psi^{n-1}(x) \, \overline{v(x)} \, dx
+% \]
+% is bounded on $H_0^1(\Omega; \mathbb{C})$. That is, there exists a constant $C > 0$ such that
+% \[
+% |L(v)| \leq C \|v\|_{H_0^1(\Omega)} \quad \forall v \in H_0^1(\Omega; \mathbb{C}).
+% \]
+% \end{lemma}
 
 \begin{lemma}[Boundedness of the linear form]
-Let $\psi^{n-1} \in L^2(\Omega; \mathbb{C})$ be given. Then the linear functional
+Let $u^t \in L^2(\Omega; \mathbb{C})$ be given. Then the linear functional
 \[
-L(v) := \int_\Omega \frac{i}{\tau} \psi^{n-1}(x) \, \overline{v(x)} \, dx
+L(v) := \frac{i}{\dt}\int_\Omega  u^{t} \, \overline{v} \, dx
 \]
 is bounded on $H_0^1(\Omega; \mathbb{C})$. That is, there exists a constant $C > 0$ such that
 \[
@@ -244,43 +286,97 @@ is bounded on $H_0^1(\Omega; \mathbb{C})$. That is, there exists a constant $C >
 \]
 \end{lemma}
 
-
-\begin{lemma}[Boundedness of the linear form]
-Let $u^{t-1} \in L^2(\Omega; \mathbb{C})$ and $V \in L^\infty(\Omega \times [0,T]; \mathbb{R})$. Define the linear form
-\[
-L(v) := i \int_\Omega u^{t-1}(x) \, \overline{v(x)} \, dx + \Delta t \int_\Omega V(x,t) \, u^{t-1}(x) \, \overline{v(x)} \, dx.
-\]
-Then there exists a constant $C > 0$ (depending on $\|u^{t-1}\|_{L^2}$ and $\|V\|_{L^\infty}$) such that
-\[
-|L(v)| \leq C \|v\|_{H_0^1(\Omega)} \quad \forall v \in H_0^1(\Omega; \mathbb{C}).
-\]
-\end{lemma}
+% \begin{lemma}[Boundedness of the linear form]
+% Let $u^{t} \in L^2(\Omega; \mathbb{C})$ and $V \in L^\infty(\Omega \times [0,T]; \mathbb{R})$. Define the linear form
+% \[
+% L(v) := i \int_\Omega u^{t}(x) \, \overline{v(x)} \, dx + \Delta t \int_\Omega V(x,t) \, u^{t}(x) \, \overline{v(x)} \, dx.
+% \]
+% Then there exists a constant $C > 0$ (depending on $\|u^{t}\|_{L^2}$ and $\|V\|_{L^\infty}$) such that
+% \[
+% |L(v)| \leq C \|v\|_{H_0^1(\Omega)} \quad \forall v \in H_0^1(\Omega; \mathbb{C}).
+% \]
+% \end{lemma}
 
 \begin{proof}
-We estimate each term separately using the Cauchy–Schwarz and Hölder inequalities.
+We estimate each term separately using the Cauchy-Schwarz and Hölder inequalities.
+\begin{align*}
+|L(v)| &\leq \left| \frac{i}{\dt} \int_\Omega u^{t}(x) \, \overline{v(x)} \, dx\right|= \frac{1}{\dt}\left| \int_\Omega u^{t}(x) \, \overline{v(x)} \, dx \right|\\
+&\leq \frac{1}{\dt}\int_\Omega |u^{t}(x)| \, |v(x)| \, dx  \quad \text{(by triangle inequality)} \\
+&\leq \frac{1}{\dt}\|u^{t}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)} \quad \text{(by Cauchy-Schwarz inequality)}.
+\end{align*}
 
-First term:
-\[
-\left| i \int_\Omega u^{t-1} \, \overline{v} \, dx \right| = \left| \int_\Omega u^{t-1} \, \overline{v} \, dx \right| \leq \|u^{t-1}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
-\]
 
-Second term:
+% Combining both:
+% \[
+% |L(v)| \leq \left(1 + \dt \|V\|_{L^\infty(\Omega)}\right) \|u^{t-1}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
+% \]
+As in the last proof we can split $\|v\|_{L^2(\Omega)} = \frac{1}{2} \|v\|_{L^2(\Omega)}^2 + \frac{1}{2} \|v\|_{L^2(\Omega)}^2$ and use the Poincaré inequality which gives us:
 \[
-\left| \Delta t \int_\Omega V(x,t) u^{t-1}(x) \, \overline{v(x)} \, dx \right| \leq \Delta t \|V\|_{L^\infty(\Omega)} \|u^{t-1}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
+|L(v)| \leq \frac{\tilde{C}}{2} \left(\|\nabla v\|_{L^2(\Omega)}^2 + \|v\|_{L^2(\Omega)}^2 \right) \leq C \|v\|_{H_0^1(\Omega)}^2,
 \]
-
-Combining both:
-\[
-|L(v)| \leq \left(1 + \Delta t \|V\|_{L^\infty(\Omega)}\right) \|u^{t-1}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
-\]
-
-Using the Poincaré inequality \( \|v\|_{L^2} \leq C_P \|v\|_{H_0^1} \), we conclude:
-\[
-|L(v)| \leq C \|v\|_{H_0^1(\Omega)}, \quad \text{with } C := C_P \left(1 + \Delta t \|V\|_{L^\infty(\Omega)}\right) \|u^{t-1}\|_{L^2(\Omega)}.
-\]
+where \( C = \frac{1}{2\dt}\|u^{t}\|_{L^2(\Omega)} \).
 
 Hence, \( L \) is bounded.
 \end{proof}
+
+\subsection{Coercivity of the Sesquilinear Form}
+\begin{lemma}
+[Coercivity of the sesquilinear form]
+Let \( a(u, v) \) be the sesquilinear form defined by
+\[
+a(u, v) = \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \frac{i}{\dt} \int_\Omega  u \, \overline{v} \, dx - \int_\Omega V(x,t) u \, \overline{v} \, dx.
+\]
+Then there exists a constant \( \alpha > 0 \) such that
+\[
+\Re a(u, u) \geq \alpha \|u\|_{H_0^1(\Omega)}^2 \quad \forall u \in H_0^1(\Omega; \mathbb{C}).
+\]
+\end{lemma}
+\begin{proof}
+We compute the real part of $a(u,u)$:
+Note: check again for minus signs looks weird
+\begin{align*}
+\Re a(u, u)
+&= \Re \left( \int_\Omega |\nabla u|^2 \, dx + \frac{i}{\dt}\int_\Omega   |u|^2 \, dx - \int_\Omega V(x,t) u \, \overline{u} \, dx \right) \\
+&=  \int_\Omega |\nabla u|^2 \, dx - \int_\Omega V(x,t) |u|^2 \, dx \\
+&= ||\nabla u||_{L^2(\Omega)}^2 - ||V||_{L^\infty(\Omega \times [0,T])}^2 ||u||_{L^2(\Omega)}^2.
+\end{align*}
+By the boundedness of the potential term, we have:
+\[ \|V\|_{L^\infty(\Omega \times [0,T])} = C_V < \infty\]
+By the Poincaré inequality, we have:
+\[
+\|u\|_{L^2(\Omega)}^2 \leq C_P ||\nabla u||_{L^2(\Omega)}^2 \quad \text{(for some constant } C_P > 0\text{)}.
+\]
+Thus, we can estimate for $\Re a(u, u)$:
+\begin{align*}
+\Re a(u, u) &= ||\nabla u||_{L^2(\Omega)}^2 - C_V ||u||_{L^2(\Omega)}^2 \\
+&\geq ||\nabla u||_{L^2(\Omega)}^2 - C_V C_P ||\nabla u||_{L^2(\Omega)}^2 \\
+&= (1 - C_V C_P) ||\nabla u||_{L^2(\Omega)}^2.
+\end{align*}
+By definition of the \(H_0^1\) norm and Poincaré inequality, we have:
+\[\|u\|_{H_0^1(\Omega)}^2 = ||\nabla u||_{L^2(\Omega)}^2 + ||u||_{L^2(\Omega)}^2 \leq (1+C_P) ||\nabla u||_{L^2(\Omega)}^2.\]
+and therefore:
+\[\|u\|_{L^2(\Omega)}^2 \geq \frac{1}{1 + C_P} ||\nabla u||_{H_0^1(\Omega)}^2.\]
+Combining these estimates, we obtain:
+\begin{align*}
+\Re a(u, u) &\geq (1 - C_V C_P) ||\nabla u||_{L^2(\Omega)}^2 \\
+&\geq  \frac{1 - C_V C_P}{1 + C_P} ||u\|_{H_0^1(\Omega)}^2.
+\end{align*}
+Thus, we can choose \( \alpha = \frac{(1 - C_V C_P)}{(1 + C_P)} > 0 \) if \( C_V < 1/C_P \) and the real part of the sesquilinear form is coercive.
+% \textbf{Upper Bound for Potential Term:}
+% \[\|V\|_{L^\infty(\Omega \times [0,T])} \leq C_V \quad \text{(almost everywhere)}\]
+
+% By recalling the definition of the \(H_0^1\) norm:
+% \[
+% ||u||_{H_0^1(\Omega)}^2 = ||\nabla u||_{L^2(\Omega)}^2 + ||u||_{L^2(\Omega)}^2,
+% \]
+% we can transform achieve the coercivity condition by using the Poincaré inequality.
+% \begin{align*}
+%   ||\nabla u||_{L^2(\Omega)}^2 &= \frac{1}{2} || \nabla u||_{L^2(\Omega)}^2 + \frac{1}{2} || \nabla u||_{L^2(\Omega)}^2\\
+%   & \geq \frac{1}{2} ||u||_{L^2(\Omega)}^2 + \frac{1}{2} ||\nabla u||_{L^2(\Omega)}^2 \text{(by Poincaré inequality)} \\
+%   & = \frac{1}{2} ||u||_{H_0^1(\Omega)}^2.
+% \end{align*}
+\end{proof}
+We showed that every condition of the Lax-Milgram theorem is satisfied, thus a solution to the weak formulation of the Schrödinger equation exists and is unique.
 
 
 \section{Solving the Schrödinger Equation with PINNs}
@@ -383,7 +479,7 @@ We discretize the time interval $[0,T]$ with step size $\Delta t > 0$ and denote
 
 We use the backward Euler method for the time derivative:
 \[
-\partial_t u(t_n) \approx \frac{u^n - u^{n-1}}{dt}.
+\partial_t u(t_n) \approx \frac{u^n - u^{n-1}}{\dt}.
 \]
 
 The time-discrete weak formulation reads:
@@ -391,7 +487,7 @@ Given $u^{n-1} \in H_0^1(\Omega; \mathbb{C})$, find $u^n \in H_0^1(\Omega; \math
 \begin{align*}
 \left( \frac{i}{\Delta t} u^n, v \right)_{L^2(\Omega)} + (\nabla u^n, \nabla v)_{L^2(\Omega)} &= \left( \frac{i}{\Delta t} u^{n-1}, v \right)_{L^2(\Omega)}.\\
 i \int_{\Omega}  u^n \, \overline{v} \, dx 
-+ dt \int_{\Omega} \nabla u^n \cdot \nabla \overline{v} \, dx 
++ \dt \int_{\Omega} \nabla u^n \cdot \nabla \overline{v} \, dx 
 &= i \int_{\Omega}  u^{n-1} \, \overline{v} \, dx.
 \end{align*}
 This is the variational equation to be solved at each time step $t_n$.

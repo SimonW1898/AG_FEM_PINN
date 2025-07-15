@@ -1,568 +1,566 @@
-#!/usr/bin/env python
-# coding: utf-8
+"""
+Modularized Schrödinger Equation Solver using Finite Elements
 
-# ## Free Time-dependent Schrödinger equation
-# 
-# We consider the time-dependent Schrödinger equation for a free particle:
-# 
-# $$
-# i \partial_t u(x,y,t) = - \Delta u(x,y,t)
-# $$
-# 
-# with homogeneous Dirichlet boundary conditions:
-# 
-# $$
-# u(x,y,t) = 0 \quad \text{on } \partial \Omega, t \geq 0
-# $$
-# 
-# and initial condition:
-# 
-# $$
-# u(x,y,0) = u_0(x,y)
-# $$
-# 
-# where
-# 
-# $$
-# u_0(x,y) = \sin(\pi x) \sin(\pi y)
-# $$
-# 
-# The exact solution is:
-# 
-# $$
-# u_{exact}(x,y,t) = \sin(\pi x) \sin(\pi y) e^{-2 i \pi^2 t}
-# $$
-# 
-# Proof:
-# 
-# In the following, we will assume $\Omega = [0,1]^2$. We take the ansatz:
-# 
-# $$
-# u(x,y,t) = \phi(x,y) e^{-i \lambda t}
-# $$
-# 
-# Substituting this into the Schrödinger equation, we get:
-# 
-# $$
-# i \partial_t \phi(x,y) e^{-i \lambda t} = - \Delta \phi(x,y) e^{-i \lambda t}
-# $$
-# 
-# which results in:
-# 
-# $$
-# \lambda \phi(x,y) = - \Delta \phi(x,y)
-# $$
-# 
-# The eigenfunctions of the Dirichlet Laplacian on the unit square are the sine functions:
-# 
-# $$
-# \phi_{n,m}(x,y) = \sin(n \pi x) \sin(m \pi y)
-# $$
-# 
-# where $n,m \in \mathbb{N}$ and $\lambda_{n,m} = \pi^2 (n^2 + m^2)$. From the initial condition, we know that $n = m = 1$.
-# 
-# Therefore, the exact solution is:
-# 
-# $$
-# u_{exact}(x,y,t) = \sin(\pi x) \sin(\pi y) e^{-2 i \pi^2 t}
-# $$
-# 
-# ## Variational formulation
-# 
-# Take any $v \in H^1_0(\Omega)$, vanishing on the boundary. Multiplying the free time-dependent Schrödinger equation with $\bar{v}$ and integrating over $\Omega$ by parts, we get:
-# 
-# $$
-# i \int_{\Omega} (\partial_t u(x,y,t)) \bar{v}(x,y,t) = \int_{\Omega} \nabla u(x,y,t) \cdot \nabla \bar{v}(x,y,t).
-# $$
-# 
-# ## Time discretization
-# 
-# Discretizing the time domain $t \in [0,T]$ into $N$ subintervals of length $dt = T/N$, and using an implicit time discretization, we can rewrite the time derivative as:
-# 
-# $$
-# \partial_t u(x,y,t) \approx \frac{u(x,y,t+dt) - u(x,y,t)}{dt}
-# $$
-# 
-# Substituting this into the variational formulation, we get:
-# 
-# $$
-# i \int_{\Omega} \frac{u(x,y,t+dt) - u(x,y,t)}{dt} \bar{v}(x,y) = \int_{\Omega} \nabla u(x,y,t+dt) \cdot \nabla \bar{v}(x,y),
-# $$
-# 
-# ## Sesquilinear form
-# 
-# By rewritting the time-discretized variational formulation as 
-# 
-# $$
-# i \int_{\Omega} u(x,y,t+dt) \bar{v}(x,y) - dt \int_{\Omega} \nabla u(x,y,t+dt) \cdot \nabla \bar{v}(x,y) = i \int_{\Omega} u(x,y,t) \bar{v}(x,y),
-# $$
-# 
-# we can identify the sesquilinear form:
-# 
-# $$
-# a(u,v) = i \int_{\Omega} u(x,y,t+dt) \bar{v}(x,y) - dt \int_{\Omega} \nabla u(x,y,t+dt) \cdot \nabla \bar{v}(x,y)
-# $$
-# 
-# and the linear form:
-# 
-# $$
-# L(v) = i \int_{\Omega} u(x,y,t) \bar{v}(x,y).
-# $$
+This module provides a class-based interface for solving the time-dependent 
+Schrödinger equation using the finite element method with DOLFINx.
 
-# In[1]:
+The solver implements the backward Euler time discretization scheme for the 
+time-dependent Schrödinger equation:
+    i ∂u/∂t = -Δu + V(x,t)u
 
+with homogeneous Dirichlet boundary conditions on the unit square [0,1]².
+"""
 
-import dolfinx
 import numpy as np
-import matplotlib.pyplot as plt
-# get_ipython().run_line_magic('matplotlib', 'inline')
-from mpi4py import MPI
+import dolfinx
+from dolfinx import fem, mesh
+from dolfinx.fem.petsc import LinearProblem
 import ufl
 from petsc4py import PETSc
-from dolfinx.fem.petsc import assemble_vector, assemble_matrix
-import pyvista
-import tqdm
-
-
-# In[2]:
-
-
-# Verify that PETSc is using complex numbers
-print(f"PETSc ScalarType: {PETSc.ScalarType}")
-assert np.dtype(PETSc.ScalarType).kind == 'c', "PETSc must be compiled with complex numbers"
-
-
-# In[3]:
-
-
-# Time parameters
-T = 1.0
-N = 100
-dt = T/N
-
-
-# In[4]:
-
-
-# Mesh parameters
-nx, ny = 50, 50  # Mesh resolution
-
-# Create mesh
-mesh = dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, nx, ny)
-
-# Define spatial coordinate
-x = ufl.SpatialCoordinate(mesh)
-
-
-# In[5]:
-
-
-# Define function spaces
-V = dolfinx.fem.functionspace(mesh, ("Lagrange", 1))
-
-# Define trial and test functions
-u = ufl.TrialFunction(V)
-v = ufl.TestFunction(V)
-
-# Define functions for current and previous time steps
-u_t = dolfinx.fem.Function(V, dtype=np.complex128)  # Previous time step
-u_t1 = dolfinx.fem.Function(V, dtype=np.complex128)  # Current time step
-
-# Define initial condition
-def initial_condition(x):
-    return np.sin(np.pi * x[0]) * np.sin(np.pi * x[1])
-
-# Set initial condition (t=0)
-u_t.interpolate(initial_condition)
-
-# Define exact solution
-def exact_solution(x, t):
-    return np.sin(np.pi * x[0]) * np.sin(np.pi * x[1]) * np.exp(-2j * np.pi**2 * t)
-
-
-# In[6]:
-
-
-# Define sesquilinear form
-a = 1j * ufl.inner(u, v) * ufl.dx - dt * ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
-
-# Linear form
-L = 1j * ufl.inner(u_t, v) * ufl.dx
-
-
-# In[7]:
-
-
-# Get boundary facets and dofs
-mesh.topology.create_connectivity(mesh.topology.dim-1, mesh.topology.dim)
-boundary_facets = dolfinx.mesh.exterior_facet_indices(mesh.topology)
-boundary_dofs = dolfinx.fem.locate_dofs_topological(V, mesh.topology.dim-1, boundary_facets)
-
-# Define boundary conditions
-u_D = dolfinx.fem.Function(V, dtype=np.complex128)
-u_D.x.array[:] = 0.0
-bc = dolfinx.fem.dirichletbc(u_D, boundary_dofs)
-
-
-# In[8]:
-
-
-# Define linear problem
-problem = dolfinx.fem.petsc.LinearProblem(a, L, bcs=[bc])
-
-
-# In[9]:
-
-
-times = []
-l2_errors = []
-
-# Time stepping loop
-print("Starting time stepping...")
-for n in range(N):
-    # Current time
-    t = (n + 1) * dt
-    times.append(t)
-
-    # Solve for current time step
-    u_t1 = problem.solve()
-
-    # Compute exact solution at current time
-    u_exact = dolfinx.fem.Function(V, dtype=np.complex128)
-    u_exact.interpolate(lambda x: exact_solution(x, t))
-
-    # Compute and store L2 error
-    error_form = ufl.inner(u_t1 - u_exact, u_t1 - u_exact) * ufl.dx
-    error_local = dolfinx.fem.assemble_scalar(dolfinx.fem.form(error_form))
-    error_global = np.sqrt(mesh.comm.allreduce(error_local, op=MPI.SUM))
-    l2_errors.append(abs(error_global))
-
-    # Update solution for next time step
-    u_t.x.array[:] = u_t1.x.array[:]
-
-    # Print progress
-    if (n + 1) % 10 == 0:
-        print(f"Time step {n+1}/{N}, t={t:.3f}, L2 error: {abs(error_global):.2e}")
-
-print(f"Time stepping completed. Final L2 error: {l2_errors[-1]:.2e}")
-
-
-# In[10]:
-
-
-# Plot error evolution
-plt.figure(figsize=(10, 6))
-plt.plot(times, l2_errors, 'b-', linewidth=2)
-plt.xlabel('Time')
-plt.ylabel('L2 Error')
-plt.title('Time-dependent Schrödinger Equation: L2 Error Evolution')
-plt.grid(True)
-plt.savefig('schroedinger_error.png', dpi=150, bbox_inches='tight')
-plt.show()
-
-
-# In[11]:
-
-
-# Compare final solution with exact solution
-t_final = T
-u_exact_final = dolfinx.fem.Function(V, dtype=np.complex128)
-u_exact_final.interpolate(lambda x: exact_solution(x, t_final))
-
-
-# In[12]:
-
-
-print(f"\nFinal time t={t_final}")
-print(f"Max error (real part): {np.max(np.abs(u_t1.x.array.real - u_exact_final.x.array.real)):.2e}")
-print(f"Max error (imag part): {np.max(np.abs(u_t1.x.array.imag - u_exact_final.x.array.imag)):.2e}")
-
-
-# In[13]:
-
-
-# Visualization using PyVista
-if MPI.COMM_WORLD.rank == 0:
-    print("\nCreating visualization...")
+from mpi4py import MPI
+import matplotlib.pyplot as plt
+from typing import Callable, Optional, Union, Tuple, List, Any
+from abc import ABC, abstractmethod
+from potentials import ModelPotential
+
+def get_model_potential():
+    from potentials import ModelPotential
+    V = ModelPotential(
+        time_dependent=True,
+        laser_amplitude=0.4,
+        laser_omega=5.0,
+        laser_pulse_duration=0.4,
+        laser_center_time=0.5,
+        laser_envelope_type='gaussian',
+        laser_spatial_profile_type='uniform',
+        laser_charge=1.0,
+        laser_polarization='linear_xy'
+    )
+    # Wrap the potential to change signature from (x,y,t) to (x,t)
+    def wrapped_potential(x, t=0.0):
+        print(np.max(x))
+        print(np.min(x))
+        print(t)
+        return V(x[:,0], x[:,1], t)
+    return wrapped_potential
+
+
+class Potential:
+    def __init__(self, t=0.0):
+        self.t = t
+        self.f = ModelPotential(
+            time_dependent=True,
+            laser_amplitude=0.4,
+            laser_omega=5.0,
+            laser_pulse_duration=0.4,
+            laser_center_time=0.5,
+            laser_envelope_type='gaussian',
+            laser_spatial_profile_type='uniform',
+            laser_charge=1.0,
+            laser_polarization='linear_xy'
+        )
+
+    def __call__(self, x):
+        return self.f(x[0] + self.t)  # custom logic
+
+class SchrodingerSolver:
+    """
+    Finite Element solver for the time-dependent Schrödinger equation.
     
-    try:
-        pyvista.start_xvfb()
+    Solves: i ∂u/∂t = -Δu + V(x,t)u
+    with homogeneous Dirichlet boundary conditions on [0,1]².
+    
+    Uses backward Euler time discretization and P1 finite elements.
+    """
+    
+    def __init__(self, 
+                 nx: int = 64,
+                 ny: int = 64,
+                 T_final: float = 1.0,
+                 N_time: int = 100,
+                 potential: Optional[Any] = None,
+                 initial_condition: Optional[Callable] = None,
+                 analytical_solution: Optional[Callable] = None):
+        """
+        Initialize the Schrödinger equation solver.
         
-        # Create PyVista mesh
-        mesh.topology.create_connectivity(mesh.topology.dim, mesh.topology.dim)
-        pyvista_cells, cell_types, geometry = dolfinx.plot.vtk_mesh(V)
-        grid = pyvista.UnstructuredGrid(pyvista_cells, cell_types, geometry)
+        Parameters:
+        - nx, ny: Number of grid points in x and y directions
+        - T_final: Final time for simulation
+        - N_time: Number of time steps
+        - potential: Potential function (Potential class instance)
+        - initial_condition: Initial condition function u₀(x,y)
+        - analytical_solution: Analytical solution function u(x,y,t) for error analysis
+        """
+        # Grid and time parameters
+        self.nx = int(nx)
+        self.ny = int(ny)
+        self.T_final = T_final
+        self.N_time = int(N_time)
+        self.dt = T_final / N_time
         
-        # Add solution data
-        grid.point_data["u_real"] = u_t1.x.array.real
-        grid.point_data["u_imag"] = u_t1.x.array.imag
-        grid.point_data["u_magnitude"] = np.abs(u_t1.x.array)
+        # Create mesh and function space
+        self.mesh = dolfinx.mesh.create_unit_square(
+            MPI.COMM_WORLD, self.nx, self.ny, dolfinx.mesh.CellType.triangle
+        )
+        self.V = fem.functionspace(self.mesh, ("Lagrange", 1))
         
-        # Add exact solution data
-        grid.point_data["u_exact_real"] = u_exact_final.x.array.real
-        grid.point_data["u_exact_imag"] = u_exact_final.x.array.imag
-        grid.point_data["u_exact_magnitude"] = np.abs(u_exact_final.x.array)
+        # Set potential (default to zero potential)
+        if potential is None:
+            try:
+                self.potential = HarmonicPotential()
+            except:
+                self.potential = None
+        else:
+            self.potential = potential
+            
+        # Set initial condition (default to sin(πx)sin(πy))
+        if initial_condition is None:
+            self.initial_condition = lambda x: np.sin(np.pi * x[0]) * np.sin(np.pi * x[1])
+        else:
+            self.initial_condition = initial_condition
+            
+        # Set analytical solution (default to free particle solution)
+        if analytical_solution is None:
+            self.analytical_solution = lambda x, t: (
+                np.sin(np.pi * x[0]) * np.sin(np.pi * x[1]) * 
+                np.exp(-1j * 2 * np.pi**2 * t)
+            )
+        else:
+            self.analytical_solution = analytical_solution
         
-        # Plot real part of numerical solution
-        grid.set_active_scalars("u_real")
-        p_real = pyvista.Plotter()
-        p_real.add_mesh(grid, show_edges=True)
-        p_real.view_xy()
-        p_real.add_text(f"Real part of numerical solution at t={t_final}", position='upper_left')
-        if not pyvista.OFF_SCREEN:
-            p_real.show(jupyter_backend='none')
-            figure = p_real.screenshot("schroedinger_real.png")
+        # Initialize solution storage
+        self.solutions: List[Any] = []  # Store solutions at each time step
+        self.times = np.linspace(0, T_final, N_time + 1)
+        self.errors: List[float] = []  # Store L2 errors if analytical solution is available
         
-        # Plot imaginary part of numerical solution
-        grid.set_active_scalars("u_imag")
-        p_imag = pyvista.Plotter()
-        p_imag.add_mesh(grid, show_edges=True)
-        p_imag.view_xy()
-        p_imag.add_text(f"Imaginary part of numerical solution at t={t_final}", position='upper_left')
-        if not pyvista.OFF_SCREEN:
-            p_imag.show()
-            figure = p_imag.screenshot("schroedinger_imag.png")
+        # Set up boundary conditions
+        self._setup_boundary_conditions()
         
-        # Plot magnitude
-        grid.set_active_scalars("u_magnitude")
-        p_mag = pyvista.Plotter()
-        p_mag.add_mesh(grid, show_edges=True)
-        p_mag.view_xy()
-        p_mag.add_text(f"Magnitude of numerical solution at t={t_final}", position='upper_left')
-        if not pyvista.OFF_SCREEN:
-            p_mag.show()
-            figure = p_mag.screenshot("schroedinger_mag.png")
-        print("Visualization completed successfully")
+        # Initialize current solution
+        self.u_current = None
+        self.u_previous = None
         
-    except Exception as e:
-        print(f"Visualization error: {e}")
-        print("This is normal in containerized environments")
-
-
-# In[14]:
-
-
-# Grid Spacing Analysis with Interactive 3D Plot
-print("Starting grid spacing convergence study...")
-
-# Define different grid resolutions to test
-grid_resolutions = [8, 16, 32, 64, 128, 256]  # Reduced for faster computation
-T_study = 1.0  # Time interval
-N_study = 10000   # Time steps
-dt_study = T_study / N_study
-
-# Storage for results
-results = {}
-
-for i, nx in enumerate(grid_resolutions):
-    print(f"Solving for grid resolution {nx}x{nx}...")
+        print(f"Schrödinger solver initialized:")
+        print(f"  Grid: {nx}×{ny}, Time steps: {N_time}, dt = {self.dt:.6f}")
+        if self.potential:
+            print(f"  Potential: {getattr(self.potential, 'name', 'Custom')}")
+        else:
+            print(f"  Potential: Zero (free particle)")
+        print(f"  Domain: [0,1]²")
     
-    # Create mesh for this resolution
-    mesh_study = dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, nx, nx)
-    V_study = dolfinx.fem.functionspace(mesh_study, ("Lagrange", 1))
-    
-    # Define trial and test functions
-    u_trial = ufl.TrialFunction(V_study)
-    v_test = ufl.TestFunction(V_study)
-    u_prev = dolfinx.fem.Function(V_study, dtype=np.complex128)
-    
-    # Set initial condition
-    u_prev.interpolate(initial_condition)
-    
-    # Define forms
-    a_study = 1j * ufl.inner(u_trial, v_test) * ufl.dx - dt_study * ufl.inner(ufl.grad(u_trial), ufl.grad(v_test)) * ufl.dx
-    L_study = 1j * ufl.inner(u_prev, v_test) * ufl.dx
-    
-    # Define boundary conditions
-    mesh_study.topology.create_connectivity(mesh_study.topology.dim-1, mesh_study.topology.dim)
-    boundary_facets_study = dolfinx.mesh.exterior_facet_indices(mesh_study.topology)
-    boundary_dofs_study = dolfinx.fem.locate_dofs_topological(V_study, mesh_study.topology.dim-1, boundary_facets_study)
-    
-    u_D_study = dolfinx.fem.Function(V_study, dtype=np.complex128)
-    u_D_study.x.array[:] = 0.0
-    bc_study = dolfinx.fem.dirichletbc(u_D_study, boundary_dofs_study)
-    
-    # Create linear problem
-    problem_study = dolfinx.fem.petsc.LinearProblem(a_study, L_study, bcs=[bc_study])
-    
-    # Time stepping and error computation
-    times_study = []
-    l2_errors_study = []
-    
-    for n in tqdm.tqdm(range(N_study)):
-        t = (n + 1) * dt_study
-        times_study.append(t)
+    def _setup_boundary_conditions(self):
+        """Set up homogeneous Dirichlet boundary conditions."""
+        # Create connectivity for boundary detection
+        self.mesh.topology.create_connectivity(self.mesh.topology.dim - 1, self.mesh.topology.dim)
         
-        # Solve
-        u_curr = problem_study.solve()
+        # Find boundary facets and DOFs
+        boundary_facets = dolfinx.mesh.exterior_facet_indices(self.mesh.topology)
+        boundary_dofs = dolfinx.fem.locate_dofs_topological(
+            self.V, self.mesh.topology.dim - 1, boundary_facets
+        )
         
-        # Compute exact solution
-        u_exact_study = dolfinx.fem.Function(V_study, dtype=np.complex128)
-        u_exact_study.interpolate(lambda x: exact_solution(x, t))
+        # Create zero boundary condition
+        zero = fem.Constant(self.mesh, np.complex128(0.0 + 0.0j))
+        self.bc = fem.dirichletbc(zero, boundary_dofs, self.V)
+    
+    def set_initial_condition(self, u0_func: Callable):
+        """Set the initial condition function."""
+        self.initial_condition = u0_func
+    
+    def set_potential(self, potential: Any):
+        """Set the potential function."""
+        self.potential = potential
+    
+    def set_analytical_solution(self, analytical_func: Callable):
+        """Set the analytical solution for error analysis."""
+        self.analytical_solution = analytical_func
+    
+    def _create_initial_solution(self):
+        """Create the initial solution from the initial condition."""
+        u_init = fem.Function(self.V, dtype=np.complex128)
+        u_init.interpolate(self.initial_condition)
+        return u_init
+    
+    def _create_variational_forms(self, t_current: float):
+        """Create the variational forms for the time step."""
+        # Trial and test functions
+        u = ufl.TrialFunction(self.V)
+        v = ufl.TestFunction(self.V)
+
+        # Potential form
+        if self.potential is not None:
+            Potential = dolfinx.fem.Function(self.V)
+            Potential.interpolate(self.potential(t=t_current))
         
-        # Compute L2 error
-        error_form = ufl.inner(u_curr - u_exact_study, u_curr - u_exact_study) * ufl.dx
-        error_local = dolfinx.fem.assemble_scalar(dolfinx.fem.form(error_form))
-        error_global = np.sqrt(mesh_study.comm.allreduce(error_local, op=MPI.SUM))
-        l2_errors_study.append(abs(error_global))
+        # Constants for complex arithmetic
+        i_dt = fem.Constant(self.mesh, np.complex128(1j / self.dt))
         
-        # Update for next time step
-        u_prev.x.array[:] = u_curr.x.array[:]
+        # Bilinear form: (i/dt)⟨u,v⟩ + ⟨∇u,∇v⟩
+        a = i_dt * ufl.inner(u, v) * ufl.dx - ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
+        
+        # Linear form: (i/dt)⟨u_prev,v⟩
+        if self.potential is not None:
+            L = i_dt * ufl.inner(self.u_previous, v) * ufl.dx + ufl.inner(Potential, self.u_previous) * ufl.dx
+        else:
+            L = i_dt * ufl.inner(self.u_previous, v) * ufl.dx
+        
+        return a, L
     
-    # Store results
-    results[nx] = {
-        'times': np.array(times_study),
-        'errors': np.array(l2_errors_study),
-        'h': 1.0/nx
-    }
+    def _solve_time_step(self, t_current: float):
+        """Solve a single time step using backward Euler."""
+        # Create variational forms
+        a, L = self._create_variational_forms(t_current)
+        
+        # Solve linear system
+        problem = LinearProblem(a, L, bcs=[self.bc])
+        u_new = problem.solve()
+        
+        return u_new
     
-    print(f"Final error for nx={nx}: {l2_errors_study[-1]:.8e}")
-
-# Create interactive 3D surface plot
-from mpl_toolkits.mplot3d import Axes3D
-# get_ipython().run_line_magic('matplotlib', 'widget')
-
-# Prepare data for 3D plot
-Time, H = np.meshgrid(results[grid_resolutions[0]]['times'], 
-                      [1.0/nx for nx in grid_resolutions])
-
-Error_surface = np.zeros_like(Time)
-for i, nx in enumerate(grid_resolutions):
-    Error_surface[i, :] = results[nx]['errors']
-
-# Create interactive 3D plot
-fig = plt.figure(figsize=(12, 9))
-ax = fig.add_subplot(111, projection='3d')
-
-# Plot surface
-surf = ax.plot_surface(Time, H, Error_surface, cmap='viridis', alpha=0.8, 
-                       linewidth=0, antialiased=True)
-
-# Customize the plot
-ax.set_xlabel('Time', fontsize=12)
-ax.set_ylabel('Grid spacing h', fontsize=12)
-ax.set_zlabel('L2 Error', fontsize=12)
-ax.set_title('L2 Error Evolution: Time × Grid Spacing\n(Interactive - Click and drag to rotate)', fontsize=14)
-
-# Add colorbar
-cbar = fig.colorbar(surf, ax=ax, shrink=0.6, aspect=20)
-cbar.set_label('L2 Error', fontsize=12)
-
-# Set viewing angle for better initial view
-ax.view_init(elev=20, azim=45)
-
-# Add grid lines
-ax.grid(True, alpha=0.3)
-
-# Set z axis to log scale
-# ax.set_zscale('log')
-
-plt.tight_layout()
-plt.savefig('interactive_3d_error_analysis.png', dpi=150, bbox_inches='tight')
-plt.show()
-
-# Print summary
-print("\n" + "="*50)
-print("GRID SPACING CONVERGENCE STUDY SUMMARY")
-print("="*50)
-print(f"Time interval: [0, {T_study}]")
-print(f"Time steps: {N_study}")
-print(f"Grid resolutions: {grid_resolutions}")
-print("\nFinal errors:")
-for nx in grid_resolutions:
-    h = 1.0/nx
-    final_err = results[nx]['errors'][-1]
-    print(f"  nx = {nx:3d}, h = {h:.4f}, final error = {final_err:.8e}")
-
-# Compute convergence rate
-grid_spacings = np.array([1.0/nx for nx in grid_resolutions])
-final_errors = np.array([results[nx]['errors'][-1] for nx in grid_resolutions])
-convergence_rate = np.polyfit(np.log(grid_spacings), np.log(final_errors), 1)[0]
-print(f"\nObserved spatial convergence rate: {convergence_rate:.2f}")
-print("Expected rate for P1 elements: ≈ 2.0")
-print("="*50)
-
-
-# In[15]:
-
-
-# Two 2D Analysis Plots: Error vs Time and Error vs Grid Spacing
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-
-# Plot 1: Error vs Time for different grid spacings
-colors = plt.cm.tab10(np.linspace(0, 1, len(grid_resolutions)))
-
-for i, nx in enumerate(grid_resolutions):
-    times = results[nx]['times']
-    errors = results[nx]['errors']
-    ax1.plot(times, errors, color=colors[i], linewidth=2, 
-             label=f'nx={nx}, h={1.0/nx:.4f}', marker='o', markersize=4)
-
-ax1.set_xlabel('Time', fontsize=12)
-ax1.set_ylabel('L2 Error', fontsize=12)
-ax1.set_yscale('log')
-ax1.set_title('L2 Error Evolution vs Time\n(Different Grid Spacings)', fontsize=14)
-ax1.legend(fontsize=10)
-ax1.grid(True, alpha=0.3)
-
-# Plot 2: Error vs Grid Spacing for different times
-# Select specific time points for analysis
-time_indices = [9, 19, 29, 39, 49]  # Every 10th time step
-time_colors = plt.cm.plasma(np.linspace(0, 1, len(time_indices)))
-
-grid_spacings = [1.0/nx for nx in grid_resolutions]
-
-for i, time_idx in enumerate(time_indices):
-    errors_at_time = [results[nx]['errors'][time_idx] for nx in grid_resolutions]
-    time_value = results[grid_resolutions[0]]['times'][time_idx]
+    def solve(self, store_solutions: bool = True, compute_errors: bool = True):
+        """
+        Execute the time integration to solve the Schrödinger equation.
+        
+        Parameters:
+        - store_solutions: Whether to store solutions at each time step
+        - compute_errors: Whether to compute L2 errors (requires analytical solution)
+        
+        Returns:
+        - Dictionary with times, solutions (optional), and errors (optional)
+        """
+        print("Starting time integration...")
+        
+        # Initialize with initial condition
+        self.u_previous = self._create_initial_solution()
+        
+        if store_solutions:
+            self.solutions = [self.u_previous.copy()]
+        
+        if compute_errors:
+            self.errors = [self._compute_l2_error(0.0)]
+        
+        # Time stepping loop
+        for n in range(1, self.N_time + 1):
+            t_current = n * self.dt
+            
+            # Solve current time step
+            self.u_current = self._solve_time_step(t_current)
+            
+            # Store solution if requested
+            if store_solutions:
+                self.solutions.append(self.u_current.copy())
+            
+            # Compute error if requested
+            if compute_errors:
+                error = self._compute_l2_error(t_current)
+                self.errors.append(error)
+            
+            # Update for next iteration
+            self.u_previous.x.array[:] = self.u_current.x.array[:]
+            
+            # Progress reporting
+            if n % max(1, self.N_time // 10) == 0:
+                progress = 100 * n / self.N_time
+                if compute_errors:
+                    print(f"  Progress: {progress:5.1f}% (t={t_current:.4f}, L2 error={self.errors[-1]:.6e})")
+                else:
+                    print(f"  Progress: {progress:5.1f}% (t={t_current:.4f})")
+        
+        print("Time integration completed!")
+        
+        # Return results
+        results = {'times': self.times}
+        if store_solutions:
+            results['solutions'] = self.solutions
+        if compute_errors:
+            results['errors'] = np.array(self.errors)
+        
+        return results
     
-    ax2.loglog(grid_spacings, errors_at_time, color=time_colors[i], 
-               linewidth=2, marker='s', markersize=6, 
-               label=f't = {time_value:.3f}')
-
-# Add reference line for O(h²) convergence
-ax2.loglog(grid_spacings, errors_at_time[0] * (np.array(grid_spacings)/grid_spacings[0])**2, 
-           'k--', linewidth=1, alpha=0.7, label='O(h²) reference')
-
-ax2.set_xlabel('Grid spacing h', fontsize=12)
-ax2.set_ylabel('L2 Error', fontsize=12)
-ax2.set_title('L2 Error vs Grid Spacing\n(Different Times)', fontsize=14)
-ax2.legend(fontsize=10)
-ax2.grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.savefig('2d_error_analysis.png', dpi=150, bbox_inches='tight')
-plt.show()
-
-# Print analysis summary
-print("\n" + "="*60)
-print("2D ERROR ANALYSIS SUMMARY")
-print("="*60)
-
-print("\nError growth over time:")
-for nx in grid_resolutions:
-    initial_error = results[nx]['errors'][0]
-    final_error = results[nx]['errors'][-1]
-    growth_factor = final_error / initial_error
-    print(f"  nx = {nx:3d}: {initial_error:.2e} → {final_error:.2e} (×{growth_factor:.2f})")
-
-print(f"\nSpatial convergence at different times:")
-for i, time_idx in enumerate(time_indices):
-    time_value = results[grid_resolutions[0]]['times'][time_idx]
-    errors_at_time = [results[nx]['errors'][time_idx] for nx in grid_resolutions]
+    def _compute_l2_error(self, t: float) -> float:
+        """Compute L2 error against analytical solution."""
+        if self.analytical_solution is None:
+            return 0.0
+        
+        # Create analytical solution at current time
+        u_exact = fem.Function(self.V, dtype=np.complex128)
+        u_exact.interpolate(lambda x: self.analytical_solution(x, t))
+        
+        # Compute error
+        if t == 0:
+            u_numerical = self.u_previous
+        else:
+            u_numerical = self.u_current
+        
+        error_func = u_numerical - u_exact
+        l2_error = np.sqrt(fem.assemble_scalar(fem.form(
+            ufl.inner(error_func, error_func) * ufl.dx
+        ))).real
+        
+        return l2_error
     
-    # Compute convergence rate at this time
-    log_h = np.log(grid_spacings)
-    log_error = np.log(errors_at_time)
-    convergence_rate = np.polyfit(log_h, log_error, 1)[0]
+    def get_solution_at_time(self, t: float):
+        """Get solution at a specific time (requires stored solutions)."""
+        if not self.solutions:
+            raise ValueError("No solutions stored. Run solve() with store_solutions=True")
+        
+        # Find closest time index
+        time_idx = np.argmin(np.abs(self.times - t))
+        return self.solutions[time_idx]
     
-    print(f"  t = {time_value:.3f}: convergence rate = {convergence_rate:.2f}")
+    def plot_solution(self, t: float, plot_type: str = 'both', save_path: Optional[str] = None, plot_3d: bool = False):
+        """
+        Plot the solution at a given time using matplotlib.
+        
+        Parameters:
+        - t: Time at which to plot the solution
+        - plot_type: 'both', 'real', 'imag', or 'abs'
+        - save_path: Optional path to save the plot (will be placed in figures/ directory)
+        - plot_3d: If True, create a 3D surface plot
+        """
+        # Get solution at time t
+        u_solution = self.get_solution_at_time(t)
+        
+        # Get coordinates of degrees of freedom
+        X = self.V.tabulate_dof_coordinates()
+        
+        if plot_3d:
+            # Create 3D surface plot
+            fig = plt.figure(figsize=(12, 8))
+            ax = fig.add_subplot(111, projection='3d')
+            
+            if plot_type == 'real':
+                values = u_solution.x.array.real
+                title = 'Real'
+            elif plot_type == 'imag':
+                values = u_solution.x.array.imag
+                title = 'Imaginary'
+            else:  # abs
+                values = np.abs(u_solution.x.array)
+                title = 'Absolute'
+            
+            surf = ax.plot_trisurf(X[:, 0], X[:, 1], values, 
+                                 cmap='viridis', linewidth=0)
+            plt.colorbar(surf, ax=ax)
+            ax.set_title(f'{title} part at t={t:.4f}')
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_zlabel('u')
+            
+            if save_path is None:
+                save_path = f'figures/solution_3d_{plot_type}_t{t:.4f}.svg'
+            
+        else:  # 2D plots
+            if plot_type == 'both':
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+                
+                # Real part
+                scatter1 = ax1.scatter(X[:, 0], X[:, 1], 
+                                     c=u_solution.x.array.real,
+                                     cmap="viridis")
+                ax1.set_title(f'Real part at t={t:.4f}')
+                plt.colorbar(scatter1, ax=ax1)
+                ax1.set_xlabel('x')
+                ax1.set_ylabel('y')
+                
+                # Imaginary part
+                scatter2 = ax2.scatter(X[:, 0], X[:, 1], 
+                                     c=u_solution.x.array.imag,
+                                     cmap="viridis")
+                ax2.set_title(f'Imaginary part at t={t:.4f}')
+                plt.colorbar(scatter2, ax=ax2)
+                ax2.set_xlabel('x')
+                ax2.set_ylabel('y')
+                
+                plt.tight_layout()
+                
+                if save_path is None:
+                    save_path = f'figures/solution_both_t{t:.4f}.svg'
+            else:
+                plt.figure(figsize=(8, 6))
+                
+                if plot_type == 'real':
+                    values = u_solution.x.array.real
+                    title = 'Real'
+                elif plot_type == 'imag':
+                    values = u_solution.x.array.imag
+                    title = 'Imaginary'
+                else:  # abs
+                    values = np.abs(u_solution.x.array)
+                    title = 'Absolute'
+                
+                scatter = plt.scatter(X[:, 0], X[:, 1], c=values, cmap="viridis")
+                plt.colorbar(scatter)
+                plt.title(f'{title} part at t={t:.4f}')
+                plt.xlabel('x')
+                plt.ylabel('y')
+                
+                if save_path is None:
+                    save_path = f'figures/solution_{plot_type}_t{t:.4f}.svg'
+        
+        plt.savefig(save_path, format='svg', dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Solution plot saved to: {save_path}")
 
-print("="*60)
+    def animate_solution(self, plot_type: str = 'abs', plot_3d: bool = False, fps: int = 10):
+        """
+        Create an animation of the solution evolution over time.
+        
+        Parameters:
+        - plot_type: 'real', 'imag', or 'abs'
+        - plot_3d: If True, create a 3D surface animation
+        - fps: Frames per second for the animation
+        
+        Note: If there are more than 100 time steps, the animation will use
+        100 evenly distributed frames across the time interval.
+        """
+        if not self.solutions:
+            raise ValueError("No solutions stored. Run solve() with store_solutions=True")
+            
+        import matplotlib.animation as animation
+        
+        # Get coordinates of degrees of freedom
+        X = self.V.tabulate_dof_coordinates()
+        
+        # If we have more than 100 time steps, downsample to 100 frames
+        n_frames = min(100, len(self.solutions))
+        if len(self.solutions) > 100:
+            # Calculate indices for evenly spaced frames
+            frame_indices = np.linspace(0, len(self.solutions) - 1, n_frames, dtype=int)
+            solutions_subset = [self.solutions[i] for i in frame_indices]
+            times_subset = self.times[frame_indices]
+        else:
+            solutions_subset = self.solutions
+            times_subset = self.times
+            
+        # Create figure and axis
+        if plot_3d:
+            fig = plt.figure(figsize=(10, 8))
+            ax = fig.add_subplot(111, projection='3d')
+        else:
+            fig, ax = plt.subplots(figsize=(8, 8))
+            
+        # Function to get values based on plot type
+        def get_values(solution):
+            if plot_type == 'real':
+                return solution.x.array.real
+            elif plot_type == 'imag':
+                return solution.x.array.imag
+            else:  # abs
+                return np.abs(solution.x.array)
+                
+        # Get value range for consistent colormap
+        vmin = min(get_values(sol).min() for sol in solutions_subset)
+        vmax = max(get_values(sol).max() for sol in solutions_subset)
+        
+        if plot_3d:
+            # Initial surface plot
+            surf = ax.plot_trisurf(X[:, 0], X[:, 1], get_values(solutions_subset[0]),
+                                 cmap='viridis', linewidth=0, vmin=vmin, vmax=vmax)
+            plt.colorbar(surf, ax=ax)
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_zlabel('u')
+            
+            def update(frame):
+                ax.clear()
+                values = get_values(solutions_subset[frame])
+                surf = ax.plot_trisurf(X[:, 0], X[:, 1], values,
+                                     cmap='viridis', linewidth=0, vmin=vmin, vmax=vmax)
+                ax.set_title(f't = {times_subset[frame]:.4f}')
+                ax.set_xlabel('x')
+                ax.set_ylabel('y')
+                ax.set_zlabel('u')
+                ax.set_zlim(vmin, vmax)
+                return surf,
+        else:
+            # Initial scatter plot
+            scatter = ax.scatter(X[:, 0], X[:, 1], c=get_values(solutions_subset[0]),
+                               cmap='viridis', vmin=vmin, vmax=vmax)
+            plt.colorbar(scatter, ax=ax)
+            
+            def update(frame):
+                ax.clear()
+                values = get_values(solutions_subset[frame])
+                scatter = ax.scatter(X[:, 0], X[:, 1], c=values,
+                                   cmap='viridis', vmin=vmin, vmax=vmax)
+                ax.set_title(f't = {times_subset[frame]:.4f}')
+                ax.set_xlabel('x')
+                ax.set_ylabel('y')
+                return scatter,
+        
+        # Create animation
+        anim = animation.FuncAnimation(fig, update, frames=n_frames,
+                                     interval=1000/fps, blit=True)
+        
+        # Save animation
+        save_path = f'figures/solution_animation_{plot_type}_{"3d" if plot_3d else "2d"}.gif'
+        anim.save(save_path, writer='pillow', fps=fps)
+        plt.close()
+        print(f"Animation saved to: {save_path} ({n_frames} frames)")
+        if len(self.solutions) > 100:
+            print("Note: Time steps were downsampled to 100 frames for faster animation.")
+    
+    def plot_error_evolution(self, save_path: Optional[str] = None):
+        """Plot the L2 error evolution over time."""
+        if not self.errors:
+            raise ValueError("No errors computed. Run solve() with compute_errors=True")
+        
+        plt.figure(figsize=(10, 6))
+        plt.semilogy(self.times, self.errors, 'b-', linewidth=2, label='L2 Error')
+        plt.xlabel('Time')
+        plt.ylabel('L2 Error')
+        plt.title('Error Evolution Over Time')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        
+        if save_path is None:
+            save_path = 'figures/error_evolution.svg'
+        
+        plt.savefig(save_path, format='svg', dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Error evolution plot saved to: {save_path}")
+    
+   
 
 
-# In[ ]:
+def run_example():
+    """Run example simulation and create visualizations."""
+    print("\nRunning Schrödinger equation example...")
+
+    potential = Potential()
+    
+    # Create solver with default settings
+    solver = SchrodingerSolver(
+        nx=64, 
+        ny=64,
+        T_final=1.0, 
+        N_time=10000,
+        potential=potential
+    )
+    
+    # Solve the equation
+    results = solver.solve(store_solutions=True, compute_errors=True)
+    
+    # Plot error evolution
+    solver.plot_error_evolution()
+    
+    # Plot initial state
+    # solver.plot_solution(0.0, plot_type='both')
+    
+    # Plot final state in 2D and 3D
+    solver.plot_solution(solver.T_final, plot_type='abs')
+    solver.plot_solution(solver.T_final, plot_type='abs', plot_3d=True)
+    
+    # Create animations
+    solver.animate_solution(plot_type='imag', plot_3d=False)
+    solver.animate_solution(plot_type='imag', plot_3d=True)
+    
+    return solver
 
 
-
-
+if __name__ == "__main__":
+    # Run example
+    solver = run_example()
+    

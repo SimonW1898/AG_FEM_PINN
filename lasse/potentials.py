@@ -151,10 +151,8 @@ class Potential(ABC):
     """
     Abstract base class for 2D potential functions.
     
-    All potentials are defined on the domain [0,1] x [0,1] and are designed 
-    to be zero at the boundaries: V(0,0) = V(0,1) = V(1,0) = V(1,1) = 0.
-    
-    This ensures appropriate boundary conditions for quantum mechanical problems.
+    Provides a common interface for static and time-dependent potentials.
+    Time-dependent potentials can include laser-dipole coupling effects.
     """
     
     def __init__(self, name: str, time_dependent: bool = False, 
@@ -189,7 +187,7 @@ class Potential(ABC):
         Must be implemented by subclasses.
         
         Parameters:
-        - x, y: Position arrays in [0,1] x [0,1]
+        - x, y: Position arrays
         - **kwargs: Additional parameters for the potential
         
         Returns:
@@ -197,39 +195,24 @@ class Potential(ABC):
         """
         pass
     
-    def evaluate(self, x: Union[float, np.ndarray], y: Union[float, np.ndarray], **kwargs) -> np.ndarray:
-        """
-        Evaluate potential in 2D.
-        
-        Parameters:
-        - x, y: Position(s) in [0,1] x [0,1]
-        - **kwargs: Additional parameters for the potential
-        
-        Returns:
-        - Potential value(s)
-        """
-        # Ensure coordinates are in [0,1]
-        x, y = np.asarray(x), np.asarray(y)
-        if np.any((x < 0) | (x > 1)) or np.any((y < 0) | (y > 1)):
-            raise ValueError("x,y coordinates must be in [0,1]")
-        
-        return self._potential_function(x, y, **kwargs)
-    
-    def get_array(self, n_points: int = 100, **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def get_array(self, n_points: int = 100, x_range: Tuple[float, float] = (0, 1),
+                  y_range: Tuple[float, float] = (0, 1), **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Get 2D potential as arrays.
         
         Parameters:
         - n_points: Number of grid points in each direction
+        - x_range: (x_min, x_max) range for evaluation
+        - y_range: (y_min, y_max) range for evaluation
         - **kwargs: Additional parameters for the potential
         
         Returns:
         - (X, Y, V) where X, Y are meshgrids and V is the potential
         """
-        x = np.linspace(0, 1, n_points)
-        y = np.linspace(0, 1, n_points)
+        x = np.linspace(x_range[0], x_range[1], n_points)
+        y = np.linspace(y_range[0], y_range[1], n_points)
         X, Y = np.meshgrid(x, y)
-        V = self.evaluate(X, Y, **kwargs)
+        V = self._potential_function(X, Y, **kwargs)
         return X, Y, V
     
     def plot(self, n_points: int = 100, time_range: Tuple[float, float] = (0, 1), 
@@ -380,7 +363,7 @@ class Potential(ABC):
         Evaluate time-dependent potential in 2D.
         
         Parameters:
-        - x, y: Position(s) in [0,1] x [0,1]
+        - x, y: Position arrays
         - t: Time(s)
         - **kwargs: Additional parameters for the potential
         
@@ -390,13 +373,8 @@ class Potential(ABC):
         if not self.time_dependent:
             raise ValueError("This potential is not time-dependent")
         
-        # Ensure coordinates are in [0,1]
-        x, y = np.asarray(x), np.asarray(y)
-        if np.any((x < 0) | (x > 1)) or np.any((y < 0) | (y > 1)):
-            raise ValueError("x,y coordinates must be in [0,1]")
-        
         # Static potential
-        V_static = self.evaluate(x, y, **kwargs)
+        V_static = self._potential_function(x, y, **kwargs)
         
         # Laser pulse contribution
         V_laser = self.laser_pulse.evaluate(x, y, t)
@@ -423,7 +401,7 @@ class Potential(ABC):
         else:
             if len(args) == 2:
                 # Static 2D case
-                return self.evaluate(args[0], args[1], **kwargs)
+                return self._potential_function(args[0], args[1], **kwargs)
             else:
                 raise ValueError("Static potentials expect 2 args (x, y)")
 

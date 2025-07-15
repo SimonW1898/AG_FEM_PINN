@@ -51,7 +51,33 @@
 
 \begin{document}
 
-\section{Schrödinger Equation}
+\title{Waves, Wires, and Weights: Numerical Adventures with the Schrödinger Equation}
+\author{Simon Wenchel and Lasse Kreimendahl}
+\date{\today}
+\maketitle
+
+\tableofcontents
+
+\newpage
+
+\section{Introduction}
+
+The time-dependent Schrödinger equation lies at the heart of quantum mechanics, dictating how the state of a quantum system evolves under the influence of potential energy landscapes. In contrast to classical mechanics, which predicts trajectories, the Schrödinger equation predicts wave functions, whose squared modulus yields probability densities. This shift from deterministic paths to probabilistic amplitudes marks a fundamental departure from classical intuition.
+
+From fundamental atomic models to emergent quantum technologies, the ability to solve the Schrödinger equation accurately and efficiently is essential for predicting quantum behavior. Yet, in most realistic settings, analytic solutions are unavailable. This necessitates the development of robust numerical approaches.
+
+In molecular systems, the Schrödinger equation governs the motion of nuclei on potential energy surfaces obtained from electronic structure calculations. Within the Born-Oppenheimer approximation, these nuclei behave as quantum particles subject to high-dimensional, often anharmonic potentials. For example, when modeling the movement of atoms within a molecule, it is common to reduce the full-dimensional problem to a few key internal coordinates, such as bond stretching or rotations. Even in such simplified spaces, the time evolution of a quantum state can reveal complex phenomena such as tunneling (where a particle passes through a potential barrier it classically could not cross), interference (where overlapping wave functions amplify or cancel each other), or wave packet spreading (the dispersion of a localized quantum state over time)—none of which are accessible through classical approximations.
+
+This report investigates the numerical solution of the time-dependent Schrödinger equation in two spatial dimensions, a setting that permits the exploration of realistic molecular scenarios while maintaining computational tractability. Specifically, we consider model systems where the potential energy surface encodes features representative of atomic motions, reactive pathways, or coupled physical effects.
+
+To address this problem, we compare two distinct numerical strategies. The first is the finite element method (FEM), a classical and rigorously grounded approach based on variational formulations. The second leverages recent advances in machine learning: physics-informed neural networks (PINNs), which approximate the solution by minimizing the residual of the governing equations within a data-driven framework. While FEM offers precision and theoretical guarantees, PINNs provide flexibility and mesh-free generalization—particularly attractive for high-dimensional or inverse problems.
+
+Through this dual lens, the report aims to highlight both the challenges and opportunities inherent in solving quantum dynamical equations numerically, and to evaluate the strengths of different computational paradigms in a physically meaningful context.
+
+\section{Finite Element Method}
+
+\subsection*{Schrödinger Equation}
+
 The Schrödinger equation is a second-order partial differential equation that describes the time evolution of a quantum system, represented by its wave function. \\
 Let $\Omega \subset \mathbb{R}^n$ be a bounded Lipschitz domain and let $V : \Omega \times [0,T] \to \mathbb{R}$ be a given potential. We say that a function
 \[
@@ -69,7 +95,8 @@ is a \textbf{solution to the time-dependent Schrödinger equation} if it satisfi
 where $\Delta$ is the Laplacian operator, $V(x,t)$ is the potential, and $u(x,t)$ is the wave function and the boundary of the domain is split into Dirichlet boundary $\Gamma_D$ and Neumann boundary $\Gamma_N$ (homogeneous Dirichlet?). 
 The initial condition is given by $u_0(x)$.
 
-\section{Weak Formulation of Schrödinger's Equation}
+\subsection*{Weak Formulation of Schrödinger's Equation}
+
 $v$ is not needed to be in Sobolev space can also do other spaces but when is it elegant to do the transition to Sobolev spaces? \\
 Multiplying the Schrödinger equation by a test function $v(x,t) \in H_0^1(\Omega; \mathbb{C})$ and integrating over the domain $\Omega$, we obtain:
 
@@ -79,7 +106,8 @@ Multiplying the Schrödinger equation by a test function $v(x,t) \in H_0^1(\Omeg
 
 where $v := v(x,t)$ is a test function in $H_0^1(\Omega; \mathbb{C})$.
 
-\section{Time discretisation of Schrödinger's Equation}
+\subsection*{Time discretisation of Schrödinger's Equation}
+
 Using an implicit time discretisation scheme, we can rewrite the time derivative as:
 \begin{equation}
     \partial_t u(x,t) \approx \frac{u^{t + \dt} - u^t}{\dt},
@@ -119,8 +147,8 @@ and the associated norm
 \|u\|_{H_0^1} := \sqrt{ \langle u, u \rangle_{H_0^1} }.
 \]
 
+\subsection*{Lax-Milgram Theorem for complex Problems}
 
-\section{Lax-Milgram Theorem for complex Problems}
 \begin{theorem}
 [Lax-Milgram Theorem]
 Let $H$ be a complex Hilbert space with inner product $\langle \cdot, \cdot \rangle$ and norm $\| \cdot \|_H$. Let $a : H \times H \to \mathbb{C}$ be a sesquilinear form, i.e.,
@@ -149,11 +177,14 @@ a(u, v) = L(v) \quad \text{for all } v \in H.
 \end{theorem}
 
 
-\section{Apply Lax Milgram}
+\subsection*{Apply Lax Milgram}
+
 Show that the left-hand side: 
 $$a(u,v) = \frac{i}{\dt} \int_{\Omega} u^{t + \dt} \bar{v} \, dx -  \int_{\Omega} V(x,t) u^{t + \dt} \bar{v} \, dx + \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} \, dx$$ is a sesquilinear form.
 And the right-hand side: $$L(v) = \frac{i}{\dt} \int_{\Omega} u^t \bar{v} \, dx $$ is a bounded linear functional.
-\subsection{Scalar Product in $H_0^1(\Omega; \mathbb{C})$}
+
+\subsection*{Scalar Product in $H_0^1(\Omega; \mathbb{C})$}
+
 We define the scalar product
 \[
 \langle u, v \rangle_{H_0^1} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx.
@@ -167,7 +198,8 @@ This is a valid sesquilinear inner product because:
 \end{itemize}
 Hence, $(H_0^1(\Omega; \mathbb{C}), \langle \cdot, \cdot \rangle_{H_0^1})$ is a Hilbert space.
 
-\subsection{Boundedness of the Sesquilinear and Linear Form.}
+\subsection*{Boundedness of the Sesquilinear and Linear Form.}
+
 \begin{lemma}[Boundedness of $a(u, v)$]
 Let $u, v \in H_0^1(\Omega; \mathbb{C})$, $V \in L^\infty(\Omega)$ and $\tau > 0$. Then the sesquilinear form $a(u, v)$ is bounded, i.e., there exists $M > 0$ such that
 \[
@@ -319,7 +351,8 @@ where \( C = \frac{1}{2\dt}\|u^{t}\|_{L^2(\Omega)} \).
 Hence, \( L \) is bounded.
 \end{proof}
 
-\subsection{Coercivity of the Sesquilinear Form}
+\subsection*{Coercivity of the Sesquilinear Form}
+
 \begin{lemma}
 [Coercivity of the sesquilinear form]
 Let \( a(u, v) \) be the sesquilinear form defined by
@@ -379,9 +412,11 @@ Thus, we can choose \( \alpha = \frac{(1 - C_V C_P)}{(1 + C_P)} > 0 \) if \( C_V
 We showed that every condition of the Lax-Milgram theorem is satisfied, thus a solution to the weak formulation of the Schrödinger equation exists and is unique.
 
 
-\section{Solving the Schrödinger Equation with PINNs}
+\section{Physics-Informed Neural Networks}
+
 Copilot:
 Physical Informed Neural Networks (PINNs) can be used to solve the Schrödinger equation by incorporating the physics of the problem into the training process. The neural network is trained to minimize a loss function that includes terms for the residual of the Schrödinger equation, initial conditions, and boundary conditions.
+
 \subsection*{Classical PINN Loss for the Schrödinger Equation}
 
 Let $u_\theta : \Omega \times [0,T] \to \mathbb{C}$ be a neural network approximation to the solution of the time-dependent Schrödinger equation
@@ -431,9 +466,9 @@ The full loss over all timesteps is then
 + \lambda_{\mathrm{BC}} \cdot \frac{1}{N_b} \sum_{j=1}^{N_b} \left| u_\theta(x_j, t_j) \right|^2.
 \]
 
+\section{Experiments}
 
-
-\section{Problem 1: Schrödinger Equation on the Unit Square}
+\subsection*{Problem 1: Schrödinger Equation on the Unit Square}
 
 We consider the time-dependent Schrödinger equation on the unit square $\Omega = (0,1)^2$ with homogeneous Dirichlet boundary conditions and zero potential:
 \begin{align*}
@@ -464,6 +499,7 @@ which satisfies:
 \end{itemize}
 
 \subsubsection*{Summary of Parameters}
+
 \begin{itemize}
   \item Domain: $\Omega = (0,1)^2$
   \item Boundary conditions: $u = 0$ on $\partial \Omega$
@@ -473,7 +509,7 @@ which satisfies:
 \end{itemize}
 
 
-\subsection*{Time-Discrete Weak Formulation (Backward Euler)}
+\subsubsection*{Time-Discrete Weak Formulation (Backward Euler)}
 
 We discretize the time interval $[0,T]$ with step size $\Delta t > 0$ and denote $u^n \approx u(t_n)$ at time $t_n = n\Delta t$.
 
@@ -491,5 +527,14 @@ i \int_{\Omega}  u^n \, \overline{v} \, dx
 &= i \int_{\Omega}  u^{n-1} \, \overline{v} \, dx.
 \end{align*}
 This is the variational equation to be solved at each time step $t_n$.
+
+\section{Discussion and Outlook}
+
+
+
+
+
+
+
 
 \end{document}

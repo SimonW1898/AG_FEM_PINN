@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # Required for 3D plotting
 from typing import Union, Tuple, Callable, Optional
 from abc import ABC, abstractmethod
 
@@ -8,10 +9,10 @@ class LaserPulse:
     """
     Laser pulse class for time-dependent potentials.
     
-    Implements laser-dipole coupling in 2D:
-    V_interaction(x, y, t) = -μ · E = -q*(x*Ex(t) + y*Ey(t))
+    Implements laser-dipole coupling in N dimensions:
+    V_interaction(x, t) = -μ · E = -q*sum(x_i*E_i(t))
     
-    where μ = q*(x, y) is the dipole moment and E = (Ex(t), Ey(t)) is the electric field.
+    where μ = q*x is the dipole moment and E(t) is the electric field.
     """
     
     def __init__(self, amplitude: float, omega: float, pulse_duration: float, 
@@ -26,7 +27,7 @@ class LaserPulse:
         - center_time: Time at which the pulse is centered (normalized to [0,1])
         - phase: Phase of the oscillation
         - envelope_type: Type of temporal envelope ('gaussian', 'sech2', 'sin2')
-        - spatial_profile_type: Spatial profile ('uniform', 'gaussian', 'x_linear', 'y_linear')
+        - spatial_profile_type: Spatial profile ('uniform', 'gaussian', 'linear')
         - charge: Effective charge for dipole moment calculation
         - polarization: Electric field polarization ('x', 'y', 'circular', 'linear_xy')
         
@@ -66,90 +67,93 @@ class LaserPulse:
         else:
             raise ValueError(f"Unknown envelope type: {self.envelope_type}")
     
-    def spatial_profile(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        """Calculate the spatial profile of the pulse."""
+    def spatial_profile(self, x: np.ndarray) -> np.ndarray:
+        """
+        Calculate the spatial profile of the pulse.
+        
+        Parameters:
+        - x: Position array of shape (dim, N)
+        """
         if self.spatial_profile_type == 'uniform':
-            return np.ones_like(x)
+            return np.ones(x.shape[1])
         
         elif self.spatial_profile_type == 'gaussian':
-            # Gaussian beam profile centered at (0.5, 0.5)
-            r2 = (x - 0.5)**2 + (y - 0.5)**2
+            # Gaussian beam profile centered at 0.5 in each dimension
+            r2 = np.sum((x - 0.5)**2, axis=0)
             return np.exp(-2 * r2 / 0.1)  # w0 = 0.1
         
-        elif self.spatial_profile_type == 'x_linear':
-            # Linear profile in x direction
-            return x
-        
-        elif self.spatial_profile_type == 'y_linear':
-            # Linear profile in y direction
-            return y
+        elif self.spatial_profile_type == 'linear':
+            # Linear profile in first dimension
+            return x[0]
         
         else:
             raise ValueError(f"Unknown spatial profile: {self.spatial_profile_type}")
     
-    def electric_field(self, x: np.ndarray, y: np.ndarray, t: Union[float, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+    def electric_field(self, x: np.ndarray, t: Union[float, np.ndarray]) -> np.ndarray:
         """
-        Calculate the electric field components Ex(t) and Ey(t).
+        Calculate the electric field components E(t).
         
         Parameters:
-        - x, y: Spatial coordinates
+        - x: Position array of shape (dim, N)
         - t: Time(s)
         
         Returns:
-        - (Ex, Ey): Electric field components
+        - E: Electric field components of shape (dim, N)
         """
         temporal = self.temporal_envelope(t)
-        spatial = self.spatial_profile(x, y)
+        spatial = self.spatial_profile(x)
         # Scale omega for normalized time t ∈ [0,1]: multiply by 2π to get proper frequency
         oscillation = np.cos(2 * np.pi * self.omega * np.asarray(t) + self.phase)
         
         field_magnitude = self.amplitude * temporal * spatial * oscillation
+        dim = x.shape[0]
         
         if self.polarization == 'x':
-            Ex = field_magnitude
-            Ey = np.zeros_like(Ex)
-        elif self.polarization == 'y':
-            Ex = np.zeros_like(field_magnitude)
-            Ey = field_magnitude
-        elif self.polarization == 'linear_xy':
-            # Linear polarization at 45 degrees
-            Ex = field_magnitude / np.sqrt(2)
-            Ey = field_magnitude / np.sqrt(2)
-        elif self.polarization == 'circular':
-            # Circular polarization
-            Ex = field_magnitude * np.cos(2 * np.pi * self.omega * np.asarray(t) + self.phase)
-            Ey = field_magnitude * np.sin(2 * np.pi * self.omega * np.asarray(t) + self.phase)
+            E = np.zeros((dim, x.shape[1]))
+            E[0] = field_magnitude
+        elif self.polarization == 'y' and dim >= 2:
+            E = np.zeros((dim, x.shape[1]))
+            E[1] = field_magnitude
+        elif self.polarization == 'linear_xy' and dim >= 2:
+            # Linear polarization at 45 degrees in x-y plane
+            E = np.zeros((dim, x.shape[1]))
+            E[0] = field_magnitude / np.sqrt(2)
+            E[1] = field_magnitude / np.sqrt(2)
+        elif self.polarization == 'circular' and dim >= 2:
+            # Circular polarization in x-y plane
+            E = np.zeros((dim, x.shape[1]))
+            E[0] = field_magnitude * np.cos(2 * np.pi * self.omega * np.asarray(t) + self.phase)
+            E[1] = field_magnitude * np.sin(2 * np.pi * self.omega * np.asarray(t) + self.phase)
         else:
-            raise ValueError(f"Unknown polarization: {self.polarization}")
+            raise ValueError(f"Unknown or incompatible polarization: {self.polarization} for dimension {dim}")
         
-        return Ex, Ey
+        return E
     
-    def evaluate(self, x: np.ndarray, y: np.ndarray, t: Union[float, np.ndarray]) -> np.ndarray:
+    def evaluate(self, x: np.ndarray, t: Union[float, np.ndarray]) -> np.ndarray:
         """
         Evaluate the laser-dipole interaction potential.
         
         Parameters:
-        - x, y: Spatial coordinates
+        - x: Position array of shape (dim, N)
         - t: Time(s)
         
         Returns:
-        - V_interaction = -μ · E = -q*(x*Ex + y*Ey)
+        - V_interaction = -μ · E = -q*sum(x_i*E_i)
         """
-        Ex, Ey = self.electric_field(x, y, t)
+        E = self.electric_field(x, t)
         
-        # Dipole moment components: μ = q*(x, y)
-        mu_x = self.charge * (x - 0.5)
-        mu_y = self.charge * (y - 0.5)
+        # Dipole moment: μ = q*(x - 0.5)
+        mu = self.charge * (x - 0.5)
         
         # Interaction potential: V = -μ · E
-        V_interaction = -(mu_x * Ex + mu_y * Ey)
+        V_interaction = -np.sum(mu * E, axis=0)
         
         return V_interaction
 
 
 class Potential(ABC):
     """
-    Abstract base class for 2D potential functions.
+    Abstract base class for N-dimensional potential functions.
     
     Provides a common interface for static and time-dependent potentials.
     Time-dependent potentials can include laser-dipole coupling effects.
@@ -181,44 +185,54 @@ class Potential(ABC):
             self.laser_pulse = None
     
     @abstractmethod
-    def _potential_function(self, x: np.ndarray, y: np.ndarray, **kwargs) -> np.ndarray:
+    def _potential_function(self, x: np.ndarray, **kwargs) -> np.ndarray:
         """
-        Abstract method to define the 2D potential function.
+        Abstract method to define the N-dimensional potential function.
         Must be implemented by subclasses.
         
         Parameters:
-        - x, y: Position arrays
+        - x: Position array of shape (dim, N)
         - **kwargs: Additional parameters for the potential
         
         Returns:
-        - Potential values
+        - Potential values of shape (N,)
         """
         pass
     
-    def get_array(self, n_points: int = 100, x_range: Tuple[float, float] = (0, 1),
-                  y_range: Tuple[float, float] = (0, 1), **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def get_array(self, n_points: int = 100, ranges: Optional[np.ndarray] = None, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Get 2D potential as arrays.
+        Get N-dimensional potential as arrays.
         
         Parameters:
         - n_points: Number of grid points in each direction
-        - x_range: (x_min, x_max) range for evaluation
-        - y_range: (y_min, y_max) range for evaluation
+        - ranges: Array of shape (dim, 2) specifying (min, max) for each dimension
+                 If None, uses (0,1) for all dimensions
         - **kwargs: Additional parameters for the potential
         
         Returns:
-        - (X, Y, V) where X, Y are meshgrids and V is the potential
+        - (X, V) where X has shape (dim, n_points^dim) and V has shape (n_points^dim,)
         """
-        x = np.linspace(x_range[0], x_range[1], n_points)
-        y = np.linspace(y_range[0], y_range[1], n_points)
-        X, Y = np.meshgrid(x, y)
-        V = self._potential_function(X, Y, **kwargs)
-        return X, Y, V
+        # Default range is [0,1] in each dimension
+        if ranges is None:
+            ranges = np.array([[0, 1], [0, 1]])
+        
+        # Create meshgrid
+        dim = ranges.shape[0]
+        grids = [np.linspace(ranges[i,0], ranges[i,1], n_points) for i in range(dim)]
+        X = np.meshgrid(*grids, indexing='ij')
+        
+        # Reshape to (dim, N) array
+        X = np.array([x.flatten() for x in X])
+        
+        # Evaluate potential
+        V = self._potential_function(X, **kwargs)
+        
+        return X, V
     
     def plot(self, n_points: int = 100, time_range: Tuple[float, float] = (0, 1), 
              n_frames: int = 50, plot_3d: bool = False, **kwargs):
         """
-        Plot 2D potential.
+        Plot potential (only implemented for 2D potentials).
         
         Parameters:
         - n_points: Number of spatial grid points
@@ -237,12 +251,20 @@ class Potential(ABC):
     
     def _plot_static(self, n_points: int, **kwargs):
         """Plot static 2D potential."""
-        X, Y, V = self.get_array(n_points, **kwargs)
+        X, V = self.get_array(n_points, **kwargs)
+        if X.shape[0] != 2:
+            raise ValueError("Plotting only implemented for 2D potentials")
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        # Reshape back to 2D grid
+        X1 = X[0].reshape(n_points, n_points)
+        X2 = X[1].reshape(n_points, n_points)
+        V = V.reshape(n_points, n_points)
+        
+        fig = plt.figure(figsize=(12, 5))
         
         # Contour plot
-        contour = ax1.contourf(X, Y, V, levels=20, cmap='viridis')
+        ax1 = fig.add_subplot(121)
+        contour = ax1.contourf(X1, X2, V, levels=20, cmap='viridis')
         ax1.set_xlabel('x')
         ax1.set_ylabel('y')
         ax1.set_title(f'{self.name} Potential (2D Contour)')
@@ -250,7 +272,7 @@ class Potential(ABC):
         
         # 3D surface plot
         ax2 = fig.add_subplot(122, projection='3d')
-        surf = ax2.plot_surface(X, Y, V, cmap='viridis', alpha=0.8)
+        surf = ax2.plot_surface(X1, X2, V, cmap='viridis', alpha=0.8)
         ax2.set_xlabel('x')
         ax2.set_ylabel('y')
         ax2.set_zlabel('V(x,y)')
@@ -265,9 +287,13 @@ class Potential(ABC):
         """Plot animated 2D potential."""
         from matplotlib.animation import FuncAnimation
         
-        x = np.linspace(0, 1, n_points)
-        y = np.linspace(0, 1, n_points)
-        X, Y = np.meshgrid(x, y)
+        # Create coordinate grid
+        X, _ = self.get_array(n_points, **kwargs)
+        if X.shape[0] != 2:
+            raise ValueError("Plotting only implemented for 2D potentials")
+        
+        X1 = X[0].reshape(n_points, n_points)
+        X2 = X[1].reshape(n_points, n_points)
         times = np.linspace(time_range[0], time_range[1], n_frames)
         
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -275,12 +301,13 @@ class Potential(ABC):
         # Calculate V range for consistent color limits
         V_all = []
         for t in times:
-            V_all.extend(self.evaluate_time_dependent(X, Y, t, **kwargs).flatten())
+            V_all.extend(self.evaluate_time_dependent(X, t, **kwargs).flatten())
         vmin, vmax = min(V_all), max(V_all)
         
         # Initial plot
-        V0 = self.evaluate_time_dependent(X, Y, times[0], **kwargs)
-        im = ax.contourf(X, Y, V0, levels=20, cmap='viridis', vmin=vmin, vmax=vmax)
+        V0 = self.evaluate_time_dependent(X, times[0], **kwargs)
+        V0 = V0.reshape(n_points, n_points)
+        im = ax.contourf(X1, X2, V0, levels=20, cmap='viridis', vmin=vmin, vmax=vmax)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_title(f'{self.name} Potential (2D, t={times[0]:.2f})')
@@ -289,14 +316,15 @@ class Potential(ABC):
         def animate(frame):
             ax.clear()
             t = times[frame]
-            V = self.evaluate_time_dependent(X, Y, t, **kwargs)
-            im = ax.contourf(X, Y, V, levels=20, cmap='viridis', vmin=vmin, vmax=vmax)
+            V = self.evaluate_time_dependent(X, t, **kwargs)
+            V = V.reshape(n_points, n_points)
+            im = ax.contourf(X1, X2, V, levels=20, cmap='viridis', vmin=vmin, vmax=vmax)
             ax.set_xlabel('x')
             ax.set_ylabel('y')
             ax.set_title(f'{self.name} Potential (2D, t={t:.2f})')
-            # No need to return anything when blit=False
+            return [im]
         
-        anim = FuncAnimation(fig, animate, frames=n_frames, interval=100, repeat=True, blit=False)
+        anim = FuncAnimation(fig, animate, frames=n_frames, interval=100, repeat=True, blit=True)
         plt.show()
         return anim
     
@@ -304,11 +332,14 @@ class Potential(ABC):
                           n_frames: int, **kwargs):
         """Plot animated 3D surface potential."""
         from matplotlib.animation import FuncAnimation
-        from mpl_toolkits.mplot3d import Axes3D
         
-        x = np.linspace(0, 1, n_points)
-        y = np.linspace(0, 1, n_points)
-        X, Y = np.meshgrid(x, y)
+        # Create coordinate grid
+        X, _ = self.get_array(n_points, **kwargs)
+        if X.shape[0] != 2:
+            raise ValueError("Plotting only implemented for 2D potentials")
+        
+        X1 = X[0].reshape(n_points, n_points)
+        X2 = X[1].reshape(n_points, n_points)
         times = np.linspace(time_range[0], time_range[1], n_frames)
         
         fig = plt.figure(figsize=(10, 8))
@@ -317,12 +348,13 @@ class Potential(ABC):
         # Calculate V range for consistent z-axis limits
         V_all = []
         for t in times:
-            V_all.extend(self.evaluate_time_dependent(X, Y, t, **kwargs).flatten())
+            V_all.extend(self.evaluate_time_dependent(X, t, **kwargs).flatten())
         vmin, vmax = min(V_all), max(V_all)
         
         # Initial surface plot
-        V0 = self.evaluate_time_dependent(X, Y, times[0], **kwargs)
-        surf = ax.plot_surface(X, Y, V0, cmap='viridis', alpha=0.8, 
+        V0 = self.evaluate_time_dependent(X, times[0], **kwargs)
+        V0 = V0.reshape(n_points, n_points)
+        surf = ax.plot_surface(X1, X2, V0, cmap='viridis', alpha=0.8, 
                               vmin=vmin, vmax=vmax, linewidth=0, antialiased=True)
         
         ax.set_xlabel('x')
@@ -332,14 +364,15 @@ class Potential(ABC):
         ax.set_zlim(vmin, vmax)
         
         # Add colorbar
-        cbar = plt.colorbar(surf, ax=ax, shrink=0.5)
+        plt.colorbar(surf, ax=ax, shrink=0.5)
         
         def animate(frame):
             ax.clear()
             t = times[frame]
-            V = self.evaluate_time_dependent(X, Y, t, **kwargs)
+            V = self.evaluate_time_dependent(X, t, **kwargs)
+            V = V.reshape(n_points, n_points)
             
-            surf = ax.plot_surface(X, Y, V, cmap='viridis', alpha=0.8,
+            surf = ax.plot_surface(X1, X2, V, cmap='viridis', alpha=0.8,
                                   vmin=vmin, vmax=vmax, linewidth=0, antialiased=True)
             
             ax.set_xlabel('x')
@@ -351,89 +384,90 @@ class Potential(ABC):
             # Keep the same view angle
             ax.view_init(elev=30, azim=45)
             
-            return surf,
+            return [surf]
         
-        anim = FuncAnimation(fig, animate, frames=n_frames, interval=100, repeat=True, blit=False)
+        anim = FuncAnimation(fig, animate, frames=n_frames, interval=100, repeat=True, blit=True)
         plt.show()
         return anim
     
-    def evaluate_time_dependent(self, x: Union[float, np.ndarray], y: Union[float, np.ndarray], 
-                               t: Union[float, np.ndarray], **kwargs) -> np.ndarray:
+    def evaluate_time_dependent(self, x: np.ndarray, t: Union[float, np.ndarray], **kwargs) -> np.ndarray:
         """
-        Evaluate time-dependent potential in 2D.
+        Evaluate time-dependent potential.
         
         Parameters:
-        - x, y: Position arrays
+        - x: Position array of shape (dim, N)
         - t: Time(s)
         - **kwargs: Additional parameters for the potential
         
         Returns:
-        - V(x, y, t) = V_static(x, y) + V_laser(x, y, t)
+        - V(x, t) = V_static(x) + V_laser(x, t)
         """
         if not self.time_dependent:
             raise ValueError("This potential is not time-dependent")
         
         # Static potential
-        V_static = self._potential_function(x, y, **kwargs)
+        V_static = self._potential_function(x, **kwargs)
         
         # Laser pulse contribution
-        V_laser = self.laser_pulse.evaluate(x, y, t)
-        
-        return V_static + V_laser
+        if self.laser_pulse is not None:
+            V_laser = self.laser_pulse.evaluate(x, t)
+            return V_static + V_laser
+        else:
+            return V_static
     
     def __call__(self, *args, **kwargs):
         """
         Make the potential callable like a function.
         
         Parameters:
-        - For static 2D: __call__(x, y, **kwargs)
-        - For time-dependent 2D: __call__(x, y, t, **kwargs)
+        - For static: __call__(x, **kwargs) where x has shape (dim, N)
+        - For time-dependent: __call__(x, t, **kwargs)
         
         Returns:
         - Potential value(s)
         """
         if self.time_dependent:
-            if len(args) == 3:
-                # Time-dependent 2D case: x, y, t
-                return self.evaluate_time_dependent(args[0], args[1], args[2], **kwargs)
-            else:
-                raise ValueError("Time-dependent potentials expect 3 args (x, y, t)")
-        else:
             if len(args) == 2:
-                # Static 2D case
-                return self._potential_function(args[0], args[1], **kwargs)
+                # Time-dependent case: x, t
+                return self.evaluate_time_dependent(args[0], args[1], **kwargs)
             else:
-                raise ValueError("Static potentials expect 2 args (x, y)")
+                raise ValueError("Time-dependent potentials expect 2 args (x, t)")
+        else:
+            if len(args) == 1:
+                # Static case
+                return self._potential_function(args[0], **kwargs)
+            else:
+                raise ValueError("Static potentials expect 1 arg (x)")
 
 
 class HarmonicPotential(Potential):
     """
-    2D Harmonic potential: V(x,y) = depth * 2 * ((x - 0.5)^2 + (y - 0.5)^2 - 0.5)
+    2D Harmonic potential: V(x) = depth * 2 * (sum((x_i - 0.5)^2) - 0.5)
     
-    This potential is zero at the corners (0,0), (0,1), (1,0), (1,1) and has
-    its minimum at the center (0.5, 0.5) with value -depth.
+    This potential is zero at the corners and has its minimum at the center (0.5, 0.5)
+    with value -depth.
     """
     
     def __init__(self, time_dependent: bool = False, **kwargs):
         super().__init__("Harmonic", time_dependent=time_dependent, **kwargs)
     
-    def _potential_function(self, x: np.ndarray, y: np.ndarray, depth: float = 1.0) -> np.ndarray:
+    def _potential_function(self, x: np.ndarray, depth: float = 1.0) -> np.ndarray:
         """
         Harmonic potential function.
         
         Parameters:
-        - x, y: Position arrays in [0,1] x [0,1]
+        - x: Position array of shape (dim, N)
         - depth: Depth of the potential well (positive value)
         
         Returns:
-        - V(x,y) = depth * 2 * ((x - 0.5)^2 + (y - 0.5)^2 - 0.5)
+        - V(x) = depth * 2 * (sum((x_i - 0.5)^2) - 0.5)
         """
-        return depth * 2 * ((x - 0.5)**2 + (y - 0.5)**2 - 0.5)
+        return depth * 2 * (np.sum((x - 0.5)**2, axis=0) - 0.5)
 
 
 class DoubleWell(Potential):
     """
-    2D Double well potential: V(x,y) = depth * 32 * (f(x) + f(y))
+    2D Double well potential: V(x) = depth * 32 * sum(f(x_i))
     where f(t) = (t - 0.5)^4 - 0.25 * (t - 0.5)^2
     
     This potential is zero at the corners and center, with four wells
@@ -443,28 +477,28 @@ class DoubleWell(Potential):
     def __init__(self, time_dependent: bool = False, **kwargs):
         super().__init__("Double Well", time_dependent=time_dependent, **kwargs)
     
-    def _potential_function(self, x: np.ndarray, y: np.ndarray, depth: float = 1.0) -> np.ndarray:
+    def _potential_function(self, x: np.ndarray, depth: float = 1.0) -> np.ndarray:
         """
         Double well potential function.
         
         Parameters:
-        - x, y: Position arrays in [0,1] x [0,1]
+        - x: Position array of shape (dim, N)
         - depth: Depth of the potential wells (positive value)
         
         Returns:
-        - V(x,y) = depth * 32 * (f(x) + f(y))
+        - V(x) = depth * 32 * sum(f(x_i))
         - where f(t) = (t - 0.5)^4 - 0.25 * (t - 0.5)^2
         """
         def f(t):
             return (t - 0.5)**4 - 0.25 * (t - 0.5)**2
         
-        return depth * 32 * (f(x) + f(y))
+        return depth * 32 * np.sum(f(x), axis=0)
 
 
 class ModelPotential(Potential):
     """
     Model potential formed by combining 1D harmonic in x-direction and 1D double well in y-direction.
-    V(x,y) = V_harmonic(x) + V_double_well(y)
+    V(x) = V_harmonic(x_1) + V_double_well(x_2)
     
     This creates a 2D potential with harmonic confinement in x and double well structure in y.
     """
@@ -472,25 +506,25 @@ class ModelPotential(Potential):
     def __init__(self, time_dependent: bool = False, **kwargs):
         super().__init__("Model (Harmonic x + Double Well y)", time_dependent=time_dependent, **kwargs)
     
-    def _potential_function(self, x: np.ndarray, y: np.ndarray, x_depth: float = 1.0, y_depth: float = 1.0) -> np.ndarray:
+    def _potential_function(self, x: np.ndarray, x_depth: float = 1.0, y_depth: float = 1.0) -> np.ndarray:
         """
         Model potential function combining 1D harmonic and 1D double well.
         
         Parameters:
-        - x, y: Position arrays in [0,1] x [0,1]
+        - x: Position array of shape (dim, N)
         - x_depth: Depth of the harmonic potential in x-direction
         - y_depth: Depth of the double well potential in y-direction
         
         Returns:
-        - V(x,y) = V_harmonic(x) + V_double_well(y)
+        - V(x) = V_harmonic(x_1) + V_double_well(x_2)
         - where V_harmonic(x) = x_depth * 4 * ((x - 0.5)^2 - 0.25)
         - and V_double_well(y) = y_depth * 64 * ((y - 0.5)^4 - 0.25 * (y - 0.5)^2)
         """
         # 1D harmonic in x-direction (zero at x=0,1, minimum at x=0.5)
-        V_harmonic_x = x_depth * 4 * ((x - 0.5)**2 - 0.25)
+        V_harmonic_x = x_depth * 4 * ((x[0] - 0.5)**2 - 0.25)
         
         # 1D double well in y-direction (zero at y=0,0.5,1, minima at y≈0.146,0.854)
-        V_double_well_y = y_depth * 64 * ((y - 0.5)**4 - 0.25 * (y - 0.5)**2)
+        V_double_well_y = y_depth * 64 * ((x[1] - 0.5)**4 - 0.25 * (x[1] - 0.5)**2)
         
         return V_harmonic_x + V_double_well_y
 
@@ -510,11 +544,15 @@ if __name__ == "__main__":
         laser_polarization='linear_xy'
     )
     
-    # Evaluate potential with 2d meshgrid at constant time
-    x = np.linspace(0, 1, 100)
-    y = np.linspace(0, 1, 100)
+    # Create coordinate grid
+    n_points = 100
+    x = np.linspace(0, 1, n_points)
+    y = np.linspace(0, 1, n_points)
     X, Y = np.meshgrid(x, y)
-    print(V(X, Y, 0.5).shape)
+    coords = np.array([X.flatten(), Y.flatten()])  # Shape: (2, n_points^2)
+    
+    # Evaluate potential at constant time
+    print(V(coords, 0.5).shape)  # Should print: (10000,)
 
     # Plot time-dependent model potential animation (3D)
     print("Plotting Time-Dependent Model Potential Animation (3D)...")

@@ -151,8 +151,8 @@ a(u, v) = L(v) \quad \text{for all } v \in H.
 
 \section{Apply Lax Milgram}
 Show that the left-hand side: 
-$$a(u,v) = \frac{i}{\dt} \int_{\Omega} u^{t + \dt} \bar{v} -  \int_{\Omega} V(x,t) u^{t + \dt} \bar{v} + \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v}$$ is a sesquilinear form.
-And the right-hand side: $$L(v) = \frac{i}{\dt} \int_{\Omega} u^t \bar{v}  $$ is a bounded linear functional.
+$$a(u,v) = \frac{i}{\dt} \int_{\Omega} u^{t + \dt} \bar{v} \, dx -  \int_{\Omega} V(x,t) u^{t + \dt} \bar{v} \, dx + \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} \, dx$$ is a sesquilinear form.
+And the right-hand side: $$L(v) = \frac{i}{\dt} \int_{\Omega} u^t \bar{v} \, dx $$ is a bounded linear functional.
 \subsection{Scalar Product in $H_0^1(\Omega; \mathbb{C})$}
 We define the scalar product
 \[

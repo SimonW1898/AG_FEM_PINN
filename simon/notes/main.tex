@@ -138,7 +138,7 @@ This leads to the weak formulation of the Schrödinger equation:
 \begin{align*}
     i \int_{\Omega} \left( \partial_t u \right) \bar{v} \, dx = - \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u \bar{v} \, dx.
 \end{align*}
-We take the complex conjugate of the test function $v$ to ensure that the formulation aligns with the sesquilinear inner product in Hilber spaces like $L^2(\Omega; \mathbb{C})$ and $H_0^1(\Omega; \mathbb{C})$.
+We take the complex conjugate of the test function $v$ to ensure that the formulation aligns with the sesquilinear inner product in Hilbert spaces like $L^2(\Omega; \mathbb{C})$ and $H_0^1(\Omega; \mathbb{C})$.
 
 
 \subsection*{Time Integration with the Euler Method}
@@ -202,8 +202,8 @@ a(u, v) = L(v) \quad \text{for all } v \in H.
 \end{theorem}
 
 
-\subsection*{Apply Lax Milgram}
-
+\subsection*{Application of the Lax-Milgram Theorem to the Discrete Schrödinger Equation}
+To properly ...
 Show that the left-hand side: 
 $$a(u,v) = \frac{i}{\dt} \int_{\Omega} u^{t + \dt} \bar{v} \, dx -  \int_{\Omega} V(x,t) u^{t + \dt} \bar{v} \, dx + \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} \, dx$$ is a sesquilinear form.
 And the right-hand side: $$L(v) = \frac{i}{\dt} \int_{\Omega} u^t \bar{v} \, dx $$ is a bounded linear functional.

@@ -1,27 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-from PINN_tuning import PINN, sample_boundary_points, sample_initial_points, sample_interior_points, plot_model_output, total_loss, load_sample_points
+from PINN_tuning import PINN, sample_boundary_points, sample_initial_points, sample_interior_points, plot_model_output, total_loss, load_sample_points, loss_physics
 
-n_hidden = 256
-n_epochs = 5000
 
-# Load the model
-model_name = f"pinn_model_128_3_3e-05_01_01_10.pth"
+def sample_interior_points_at_T(n_points, T):
+    """Sample interior points in the domain."""
+    x = np.random.uniform(0, 1, n_points)
+    y = np.random.uniform(0, 1, n_points)
+    t = T*np.ones(n_points)
+    return torch.tensor(np.column_stack((x, y, t)), dtype=torch.float32).requires_grad_()
 
-n_hidden = 128
-n_layers = 3
-lr = 3.4200466989175795e-05
-lambda_bc = 0.1
-lambda_ic = 0.1
-lambda_pde = 1.0
-activation = 'tanh'
 
-model = PINN(n_hidden=n_hidden, n_layers=n_layers, activation=activation)
-
-model.load_state_dict(torch.load(model_name, map_location=torch.device('cpu')))
-model.eval()
-print(f"Loading model from {model_name}")
 
 # Define analytical solution
 def analytical_solution(x, y, t):
@@ -41,8 +31,40 @@ def analytical_solution(x, y, t):
 
     return np.column_stack([spatial * real_t, spatial * imag_t])
 
+n_hidden = 256
+n_epochs = 5000
+
+# Load the model
+# model_name = f"pinn_model_128_3_3e-05_01_01_10.pth"
+
+# n_hidden = 128
+# n_layers = 3
+# lr = 3.4200466989175795e-05
+# lambda_bc = 0.1
+# lambda_ic = 0.1
+# lambda_pde = 1.0
+# activation = 'tanh'
+
+model_name = f"/workspaces/new_repo_2/pinn_model_128_3_3e-05_1_1_1.pth"
+n_hidden = 128
+n_layers = 3
+lr = 3.4200466989175795e-05
+lambda_bc = 1.0
+lambda_ic = 1.0
+lambda_pde = 1.0
+activation = 'tanh'
+
+
+device = torch.device("cpu")
+model = PINN(n_hidden=n_hidden, n_layers=n_layers, activation=activation)
+
+model.load_state_dict(torch.load(model_name, map_location=device))
+model.eval()
+print(f"Loading model from {model_name}")
+
+
 T = 1
-nt = 10
+nt = 100
 time_steps = np.linspace(0, T, nt + 1)
 error_timesteps = np.zeros((nt+1,1))
 # Grid setup for evaluation
@@ -59,7 +81,7 @@ n_sample = 50000
 # Load sample points
 x_b, x_i, x_pde = load_sample_points(f"sample_points_{n_sample}.npz")
 # get device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # to device to compute the loss
 x_b = x_b.to(device)
 x_i = x_i.to(device)
@@ -90,13 +112,13 @@ for i,t in enumerate(time_steps):
         plt.subplot(1, 2, 1)
         contour = plt.contourf(X, Y, error_grid[:, :, 0], levels=50, cmap='viridis')
         plt.colorbar(contour, label='Error (Real Part)')
-        plt.title(f'Error between PINN output and analytical solution at t={t:.4f}')
+        plt.title(f'real at t={t:.4f}')
         plt.xlabel('x')
         plt.ylabel('y')
         plt.subplot(1, 2, 2)
         contour = plt.contourf(X, Y, error_grid[:, :, 1], levels=50, cmap='viridis')
         plt.colorbar(contour, label='Error (Imaginary Part)')
-        plt.title(f'Error between PINN output and analytical solution at t={t:.4f}')
+        plt.title(f'imag at t={t:.4f}')
         plt.xlabel('x')
         plt.ylabel('y')
 
@@ -120,3 +142,13 @@ plt.grid(True)
 plt.legend()
 plt.savefig("simon/PINN_error/L2_error_over_time.png")
 plt.close()
+
+
+
+# compute pde loss
+for i,t in enumerate(time_steps):
+    X = sample_interior_points_at_T(5000, t)
+    X_tensor = X.to(device).requires_grad_()
+    # check devices for X_tensor and model
+    pde_loss = loss_physics(model, X_tensor)
+    print(f"PDE Loss at t={t:.4f}: {pde_loss.item():.6f}")

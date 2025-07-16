@@ -216,8 +216,8 @@ def plot_loss_history(loss_history, epoch_history, window=500):
 
 def make_sample_points_file_name(n_points):
     N_points_interior = int(n_points)
-    N_points_initial = int(n_points/5)
-    N_points_boundary = int(n_points/5)
+    N_points_initial = int(n_points)
+    N_points_boundary = int(n_points)
     x_b = sample_boundary_points(N_points_boundary, T)
     x_i = sample_initial_points(N_points_initial)
     x_pde = sample_interior_points(N_points_interior, T)
@@ -254,7 +254,7 @@ if __name__ == "__main__":
     # shift model on device
     model.to(device)
 
-    n_points = int(10000)
+    n_points = int(50000)
     print("Creating sample points...")
     # make sample points file name
     make_sample_points_file_name(n_points)

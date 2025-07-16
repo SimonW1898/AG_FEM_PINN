@@ -1,0 +1,17 @@
+nohup: ignoring input
+/workspaces/new_repo_2/simon/PINN_tuning.py:71: SyntaxWarning: invalid escape sequence '\m'
+  """ 
+Epoch    0 | Training Loss: 1.8303e-02 | Validation PDE Loss: 1.0383e-04
+Epoch  100 | Training Loss: 9.2697e-03 | Validation PDE Loss: 7.2831e-05
+Epoch  200 | Training Loss: 8.2653e-03 | Validation PDE Loss: 1.6253e-04
+Epoch  300 | Training Loss: 7.5758e-03 | Validation PDE Loss: 1.7515e-04
+Epoch  400 | Training Loss: 7.1601e-03 | Validation PDE Loss: 1.6048e-04
+Epoch  500 | Training Loss: 6.7483e-03 | Validation PDE Loss: 1.9440e-04
+Epoch  600 | Training Loss: 6.2645e-03 | Validation PDE Loss: 2.6829e-04
+Epoch  700 | Training Loss: 5.7924e-03 | Validation PDE Loss: 3.3137e-04
+Epoch  800 | Training Loss: 5.3263e-03 | Validation PDE Loss: 3.7859e-04
+Epoch  900 | Training Loss: 4.8289e-03 | Validation PDE Loss: 4.1246e-04
+
+Final Validation PDE Loss: 4.3831e-04
+Model saved as pinn_model_128_3_3e-05_0.1_0.1_1.0.pth
+Training time: 4609.87 seconds

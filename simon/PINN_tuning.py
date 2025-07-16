@@ -4,6 +4,7 @@ import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 
 import itertools
+import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -122,6 +123,7 @@ def potential_function(x):
     """
     x1 = x[:, 0]
     x2 = x[:, 1]
+
     t = x[:, 2]
     return 0.0 * (x1**2 + x2**2) * (1 + t) # set to zero for now, can be modified later
 
@@ -130,12 +132,12 @@ def loss_boundary(model, x_b):
     loss = torch.mean(u_b[:, 0]**2 + u_b[:, 1]**2)
     return loss
 
-def loss_initial(model, x_i):
-    u_i = model(x_i)
-    initial_r = torch.sin(np.pi * x_i[:, 0]) * torch.sin(np.pi * x_i[:, 1])
+def loss_initial(model, x_initial):
+    u_initial = model(x_initial)
+    initial_r = torch.sin(np.pi * x_initial[:, 0]) * torch.sin(np.pi * x_initial[:, 1])
     initial_i = torch.zeros_like(initial_r)
-    res_r = u_i[:, 0] - initial_r
-    res_i = u_i[:, 1] - initial_i
+    res_r = u_initial[:, 0] - initial_r
+    res_i = u_initial[:, 1] - initial_i
     loss = torch.mean(res_r**2 + res_i**2)
     return loss
 
@@ -252,25 +254,26 @@ def objective(trial):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Hyperparameters
-    n_hidden = trial.suggest_int('n_hidden', 64, 512, step=64)
+    # n_hidden []
+    n_hidden = trial.suggest_categorical('n_hidden', [64, 128, 256, 512])
     n_layers = trial.suggest_int('n_layers', 2, 5)
-    activation = trial.suggest_categorical('activation', ['tanh', 'relu', 'sigmoid', 'gelu'])
-    lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True)
-    weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-3, log=True)
+    lr = trial.suggest_float('lr', 1e-5, 1e-3, log=True)
 
     # Regularization parameters
-    lambda_min = 1e-2
+    lambda_min = 1e-1
     lambda_max = 1.0
-    lambda_bc = trial.suggest_float('lambda_bc', lambda_min, lambda_max, log=True)
-    lambda_ic = trial.suggest_float('lambda_ic', lambda_min, lambda_max, log=True)
-    lambda_pde = trial.suggest_float('lambda_pde', lambda_min, lambda_max, log=True)
+
+    lambda_bc = trial.suggest_categorical('lambda_bc', [lambda_min, lambda_max])
+    lambda_ic = trial.suggest_categorical('lambda_ic', [lambda_min, lambda_max])
+    lambda_pde = trial.suggest_categorical('lambda_pde', [lambda_min, lambda_max])
 
     # Create model
+    activation = 'tanh'
     model = PINN(n_hidden=n_hidden, n_layers=n_layers, activation=activation)
     model.to(device)
 
     # Define optimizer
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
     # Define parameters
     n_epochs = 500
@@ -314,7 +317,7 @@ def objective(trial):
         for (xb_batch,), (xi_batch,), (xpde_batch,) in zip(
             itertools.cycle(boundary_loader),
             itertools.cycle(initial_loader),
-            itertools.cycle(pde_loader)
+            pde_loader
         ):
             optimizer.zero_grad()
             loss = total_loss(model, xb_batch, xi_batch, xpde_batch, lambda_bc, lambda_ic, lambda_pde)
@@ -334,14 +337,82 @@ def objective(trial):
             # check if trial should be pruned
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
+            
     model.eval()
     val_loss = loss_physics(model, x_val_pde)
 
     return val_loss.item()
 
+def train_model(n_hidden=128, n_layers=3, lr=1e-4,
+                lambda_bc=1.0, lambda_ic=1.0, lambda_pde=1.0,
+                n_epochs=500, n_points=50000, batch_size=2024,
+                activation='tanh', verbose=True):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def main():    # Number of trials for hyperparameter optimization
-    n_trials = 50
+    # Create model
+    model = PINN(n_hidden=n_hidden, n_layers=n_layers, activation=activation)
+    model.to(device)
+
+    # Define optimizer
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    # Load sample points
+    x_b, x_i, x_pde = load_sample_points(f"sample_points_{n_points}.npz")   
+    x_b = x_b.to(device).requires_grad_()
+    x_i = x_i.to(device).requires_grad_()
+    x_pde = x_pde.to(device).requires_grad_()
+
+    # Validation points
+    n_val_points = 10000
+    _, _, x_val_pde = load_sample_points(f"sample_points_{n_val_points}.npz")
+    x_val_pde = x_val_pde.to(device).requires_grad_()
+
+    # Create DataLoaders
+    boundary_loader = DataLoader(TensorDataset(x_b), batch_size=batch_size, shuffle=True)
+    initial_loader = DataLoader(TensorDataset(x_i), batch_size=batch_size, shuffle=True)
+    pde_loader = DataLoader(TensorDataset(x_pde), batch_size=batch_size, shuffle=True)
+
+    # Training loop
+    num_batches = max(len(boundary_loader), len(initial_loader), len(pde_loader))
+    for epoch in range(n_epochs):
+        model.train()
+        epoch_loss = 0.0
+        batch_counter = 0
+        for (xb_batch,), (xi_batch,), (xpde_batch,) in zip(
+            itertools.cycle(boundary_loader),
+            itertools.cycle(initial_loader),
+            pde_loader
+        ):
+            optimizer.zero_grad()
+            loss = total_loss(model, xb_batch, xi_batch, xpde_batch, lambda_bc, lambda_ic, lambda_pde)
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.item()
+            batch_counter += 1
+            if batch_counter >= num_batches:
+                break
+        epoch_loss /= batch_counter
+
+        if verbose and epoch % 100 == 0:
+            model.eval()
+            val_loss = loss_physics(model, x_val_pde)
+            print(f"Epoch {epoch:4d} | Training Loss: {epoch_loss:.4e} | Validation PDE Loss: {val_loss.item():.4e}")
+
+    # Final evaluation
+    model.eval()
+    final_val_loss = loss_physics(model, x_val_pde)
+    print(f"\nFinal Validation PDE Loss: {final_val_loss.item():.4e}")
+    # Save the model
+    torch.save(model.state_dict(), f"pinn_model_{n_hidden}_{n_layers}_{lr:.0e}_{lambda_bc}_{lambda_ic}_{lambda_pde}.pth")
+    print(f"Model saved as pinn_model_{n_hidden}_{n_layers}_{lr:.0e}_{lambda_bc}_{lambda_ic}_{lambda_pde}.pth") 
+
+
+    return model
+
+
+def main_tuning():    # Number of trials for hyperparameter optimization
+    n_trials = 10
 
     # Create a study object
     study = optuna.create_study(direction='minimize',
@@ -356,5 +427,27 @@ def main():    # Number of trials for hyperparameter optimization
     for key, value in trial.params.items():
         print(f"{key}: {value}")
 
+def main_training():
+    # choose hyperparameters
+    #{'n_hidden': 64, 'n_layers': 3, 'lr': 3.4200466989175795e-05, 'lambda_bc': 0.1, 'lambda_ic': 0.1, 'lambda_pde': 1.0}
+    n_hidden = 128
+    n_layers = 3
+    lr = 3.4200466989175795e-05
+    lambda_bc = 0.1
+    lambda_ic = 0.1
+    lambda_pde = 1.0
+
+    # other parameters
+    n_epochs = 1000
+    n_points = 50000
+    batch_size = 2024
+    start = time.time()
+    train_model(n_hidden=n_hidden, n_layers=n_layers, lr=lr,
+                lambda_bc=lambda_bc, lambda_ic=lambda_ic, lambda_pde=lambda_pde,
+                n_epochs=n_epochs, n_points=n_points, batch_size=batch_size)
+    end = time.time()
+    print(f"Training time: {end - start:.2f} seconds")
+
 if __name__ == "__main__":
-    main()
+    # main_tuning()
+    main_training()

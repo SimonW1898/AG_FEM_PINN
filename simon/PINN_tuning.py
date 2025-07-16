@@ -122,6 +122,7 @@ def potential_function(x):
     """
     x1 = x[:, 0]
     x2 = x[:, 1]
+
     t = x[:, 2]
     return 0.0 * (x1**2 + x2**2) * (1 + t) # set to zero for now, can be modified later
 
@@ -130,12 +131,12 @@ def loss_boundary(model, x_b):
     loss = torch.mean(u_b[:, 0]**2 + u_b[:, 1]**2)
     return loss
 
-def loss_initial(model, x_i):
-    u_i = model(x_i)
-    initial_r = torch.sin(np.pi * x_i[:, 0]) * torch.sin(np.pi * x_i[:, 1])
+def loss_initial(model, x_initial):
+    u_initial = model(x_initial)
+    initial_r = torch.sin(np.pi * x_initial[:, 0]) * torch.sin(np.pi * x_initial[:, 1])
     initial_i = torch.zeros_like(initial_r)
-    res_r = u_i[:, 0] - initial_r
-    res_i = u_i[:, 1] - initial_i
+    res_r = u_initial[:, 0] - initial_r
+    res_i = u_initial[:, 1] - initial_i
     loss = torch.mean(res_r**2 + res_i**2)
     return loss
 
@@ -252,25 +253,26 @@ def objective(trial):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Hyperparameters
-    n_hidden = trial.suggest_int('n_hidden', 64, 512, step=64)
+    # n_hidden []
+    n_hidden = trial.suggest_categorical('n_hidden', [64, 128, 256, 512])
     n_layers = trial.suggest_int('n_layers', 2, 5)
-    activation = trial.suggest_categorical('activation', ['tanh', 'relu', 'sigmoid', 'gelu'])
-    lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True)
-    weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-3, log=True)
+    lr = trial.suggest_float('lr', 1e-5, 1e-3, log=True)
 
     # Regularization parameters
-    lambda_min = 1e-2
+    lambda_min = 1e-1
     lambda_max = 1.0
-    lambda_bc = trial.suggest_float('lambda_bc', lambda_min, lambda_max, log=True)
-    lambda_ic = trial.suggest_float('lambda_ic', lambda_min, lambda_max, log=True)
-    lambda_pde = trial.suggest_float('lambda_pde', lambda_min, lambda_max, log=True)
+
+    lambda_bc = trial.suggest_categorical('lambda_bc', [lambda_min, lambda_max])
+    lambda_ic = trial.suggest_categorical('lambda_ic', [lambda_min, lambda_max])
+    lambda_pde = trial.suggest_categorical('lambda_pde', [lambda_min, lambda_max])
 
     # Create model
+    activation = 'tanh'
     model = PINN(n_hidden=n_hidden, n_layers=n_layers, activation=activation)
     model.to(device)
 
     # Define optimizer
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
     # Define parameters
     n_epochs = 500
@@ -314,7 +316,7 @@ def objective(trial):
         for (xb_batch,), (xi_batch,), (xpde_batch,) in zip(
             itertools.cycle(boundary_loader),
             itertools.cycle(initial_loader),
-            itertools.cycle(pde_loader)
+            pde_loader
         ):
             optimizer.zero_grad()
             loss = total_loss(model, xb_batch, xi_batch, xpde_batch, lambda_bc, lambda_ic, lambda_pde)
@@ -334,14 +336,15 @@ def objective(trial):
             # check if trial should be pruned
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
+            
     model.eval()
     val_loss = loss_physics(model, x_val_pde)
 
     return val_loss.item()
 
 
-def main():    # Number of trials for hyperparameter optimization
-    n_trials = 50
+def main_tuning():    # Number of trials for hyperparameter optimization
+    n_trials = 10
 
     # Create a study object
     study = optuna.create_study(direction='minimize',
@@ -357,4 +360,4 @@ def main():    # Number of trials for hyperparameter optimization
         print(f"{key}: {value}")
 
 if __name__ == "__main__":
-    main()
+    main_tuning()

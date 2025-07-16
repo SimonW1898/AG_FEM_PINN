@@ -660,7 +660,8 @@ class SchrodingerSolver:
         return u_new
     
     def solve(self, store_solutions: bool = True, compute_errors: bool = True, save_interval: int = 1000, 
-              save_frames: bool = False, frame_plot_type: str = 'abs'):
+              save_frames: bool = False, frame_plot_type: str = 'abs', save_solver: bool = False, 
+              solver_save_path: str = 'solver_state.pkl'):
         """
         Execute the time integration to solve the Schrödinger equation.
         
@@ -670,6 +671,8 @@ class SchrodingerSolver:
         - save_interval: Interval for saving solutions and computing diagnostics (default: 1 = every step)
         - save_frames: If True, save solution plots at each saved time step to figures/solve_frames/
         - frame_plot_type: Plot type for saved frames ('real', 'imag', 'abs')
+        - save_solver: If True, save solutions and metadata to npz file
+        - solver_save_path: Path to save the solver npz file (default: 'solver_state.pkl')
         
         Returns:
         - Dictionary with times, solutions (optional), and errors (optional)
@@ -680,6 +683,7 @@ class SchrodingerSolver:
         if save_frames:
             frame_dir = 'figures/solve_frames'
             os.makedirs(frame_dir, exist_ok=True)
+    
         
         # Initialize with initial condition
         self.u_previous = self._create_initial_solution()
@@ -728,6 +732,10 @@ class SchrodingerSolver:
                     frame_path = os.path.join(frame_dir, f'solution_t{t_current:.6f}.png')
                     self.plot_solution(t_current, plot_type=frame_plot_type, save_path=frame_path, show=False, is_animation=True)
                 
+                # Save solutions to npz if requested
+                if save_solver:
+                    self._save_solutions_npz(solver_save_path)
+                
                 # Compute L2 norm of current solution
                 l2_norm = self._compute_l2_norm(self.u_current)
                 
@@ -745,6 +753,9 @@ class SchrodingerSolver:
         if save_frames:
             print(f"Solution frames saved to: {frame_dir}")
         
+        if save_solver:
+            print(f"Solver state saved to: {solver_save_path}")
+        
         # Return results
         results = {'times': self.saved_times}
         if store_solutions:
@@ -753,6 +764,26 @@ class SchrodingerSolver:
             results['errors'] = np.array(self.errors)
         
         return results
+    
+    def _save_solutions_npz(self, filepath: str):
+        """Save solutions and metadata to npz file."""
+        
+        # Prepare solution arrays
+        if self.solutions:
+            solutions_real = np.array([sol.x.array.real for sol in self.solutions])
+            solutions_imag = np.array([sol.x.array.imag for sol in self.solutions])
+        else:
+            solutions_real = np.array([])
+            solutions_imag = np.array([])
+        
+        # Save to npz file
+        np.savez(filepath,
+                 solutions_real=solutions_real,
+                 solutions_imag=solutions_imag,
+                 saved_times=np.array(self.saved_times),
+                 errors=np.array(self.errors) if self.errors else np.array([]),
+                 coordinates=self.V.tabulate_dof_coordinates(),
+                 nx=self.nx, ny=self.ny, dt=self.dt, T_final=self.T_final)
     
     def _compute_l2_error(self, t: float) -> float:
         """Compute L2 error against analytical solution."""
@@ -1213,6 +1244,7 @@ class SchrodingerSolver:
         print(f"Error evolution plot saved to: {save_path}")
 
 
+
 def run_example():
     """Run example simulation and create visualizations."""
     print("\nRunning Schrödinger equation example...")
@@ -1225,7 +1257,7 @@ def run_example():
                 c=25000.0,
                 make_asymmetric=True,
                 time_dependent=True, # If False, ignore the rest of the parameters
-                laser_amplitude=5000,
+                laser_amplitude=10000,
                 laser_omega=3.0,
                 laser_pulse_duration=0.4,
                 laser_center_time=0.5,
@@ -1293,14 +1325,25 @@ def run_example():
         nx=64, 
         ny=64,
         T_final=1.0, 
-        dt=0.00001,
+        dt=0.000001,
         potential=model_potential,
         initial_condition=initial_condition,  # Use filtered ground state
         analytical_solution=None
     )
+
+    # Create time-dependent solver, with the ground state as initial condition
+    time_solver = SchrodingerSolver(
+        nx=64, 
+        ny=64,
+        T_final=1.0, 
+        dt=0.00001,
+        potential=None,
+        initial_condition=None,  # Use filtered ground state
+        analytical_solution=None
+    )
     
     # Solve the equation
-    results = time_solver.solve(store_solutions=True, compute_errors=True, save_interval=1000, save_frames=False)  # Set to True to save individual frames
+    results = time_solver.solve(store_solutions=True, compute_errors=True, save_interval=1000, save_frames=False, save_solver=True, solver_save_path='figures/solutions.npz')  # Set to True to save individual frames
     
     # Plot error evolution
     time_solver.plot_error_evolution(save_path='figures/error_evolution.png')

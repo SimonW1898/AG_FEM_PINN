@@ -137,7 +137,7 @@ def loss_nontrivial(model, x):
     u_r = u[:, 0]
     u_i = u[:, 1]
 
-    loss = (0.5 - torch.mean(u_r**2 + u_i**2))**2  # encourage non-trivial solutions
+    loss = (10 - torch.mean(u_r**2 + u_i**2))**2  # encourage non-trivial solutions
     return loss
 
 

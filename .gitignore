@@ -27,3 +27,5 @@ dolfinx-tutorial/
 *.npz
 
 .gitignore
+
+*.json

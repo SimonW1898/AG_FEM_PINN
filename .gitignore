@@ -21,7 +21,7 @@ dolfinx-tutorial/
 *.log
 
 # PyTorch model files
-*.pt
+# *.pt
 
 # sample points numpy files
 *.npz

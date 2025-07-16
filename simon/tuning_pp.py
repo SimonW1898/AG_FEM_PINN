@@ -1,14 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-from problem_1_PINN import PINN, sample_boundary_points, sample_initial_points, sample_interior_points, plot_model_output, total_loss, load_sample_points
+from PINN_tuning import PINN, sample_boundary_points, sample_initial_points, sample_interior_points, plot_model_output, total_loss, load_sample_points
 
 n_hidden = 256
 n_epochs = 5000
 
 # Load the model
-model_name = f"pinn_model_{n_hidden}_{n_epochs}.pt"
-model = PINN(n_hidden=n_hidden)
+model_name = f"pinn_model_128_3_3e-05_01_01_10.pth"
+
+n_hidden = 128
+n_layers = 3
+lr = 3.4200466989175795e-05
+lambda_bc = 0.1
+lambda_ic = 0.1
+lambda_pde = 1.0
+activation = 'tanh'
+
+model = PINN(n_hidden=n_hidden, n_layers=n_layers, activation=activation)
+
 model.load_state_dict(torch.load(model_name, map_location=torch.device('cpu')))
 model.eval()
 print(f"Loading model from {model_name}")
@@ -32,7 +42,7 @@ def analytical_solution(x, y, t):
     return np.column_stack([spatial * real_t, spatial * imag_t])
 
 T = 1
-nt = 50
+nt = 10
 time_steps = np.linspace(0, T, nt + 1)
 error_timesteps = np.zeros((nt+1,1))
 # Grid setup for evaluation

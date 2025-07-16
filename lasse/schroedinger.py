@@ -28,8 +28,9 @@ from potentials import ModelPotential
 class Potential:
     def __init__(self):
         self.func = ModelPotential(
-            x_depth=1000.0,
+            x_depth=100.0,
             y_depth=1000.0,
+            make_asymmetric=True,
             time_dependent=True,
             laser_amplitude=0.4,
             laser_omega=5.0,
@@ -43,7 +44,7 @@ class Potential:
         self.t = 0.0
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
-        return self.func(x, self.t) + np.min(self.func(x, self.t))
+        return self.func(x, self.t)
 
 
 class StationarySchrodingerSolver:
@@ -116,68 +117,64 @@ class StationarySchrodingerSolver:
         
         return [fem.dirichletbc(uD, boundary_dofs)]
 
-    def solve_ground_state(self):
-        """Solve for the lowest eigenvalue and eigenfunction."""
-        # Create eigenvalue solver
-        eps = SLEPc.EPS().create(MPI.COMM_WORLD)
-        eps.setOperators(self.A, self.M)
-        eps.setProblemType(SLEPc.EPS.ProblemType.GHEP)  # Generalized Hermitian
-        eps.setWhichEigenpairs(SLEPc.EPS.Which.SMALLEST_REAL)
-        # eps.setDimensions(1, PETSc.DECIDE)
-        eps.setFromOptions()
-        eps.solve()
-
-        # Check convergence
-        n_conv = eps.getConverged()
-        if n_conv < 1:
-            raise RuntimeError("No eigenpairs found.")
-
-        # Print first few eigenvalues to identify the correct ground state
-        if MPI.COMM_WORLD.rank == 0:
-            print(f"Number of converged eigenpairs: {n_conv}")
-            print("First few eigenvalues:")
-            for i in range(min(n_conv, 5)):
-                eig_val = eps.getEigenvalue(i)
-                print(f"  Eigenvalue {i}: {eig_val:.6f}")
-            print(f"Expected ground state eigenvalue (2π²): {2 * np.pi**2:.6f}")
-            print()
-
-        # Find the eigenfunction with non-unit eigenvalue (the correct ground state)
-        correct_eigenvalue = None
-        correct_eigenvector = None
+    def get_filtered_ground_state(self):
+        """
+        Get the ground state by filtering out the spurious unit eigenvalue.
+        Uses solve_eigenvalues and selects the smallest non-unit eigenvalue.
+        """
+        # Solve for multiple eigenvalues first
+        if self.eigenvalues is None:
+            self.solve_eigenvalues(n_eigenvalues=10)
         
-        for i in range(min(n_conv, 5)):
-            eig_val = eps.getEigenvalue(i)
+        # Find the smallest eigenvalue that is not 1.0 (spurious)
+        ground_state_idx = None
+        for i, eig_val in enumerate(self.eigenvalues):
             if abs(eig_val - 1.0) > 0.1:  # Not the spurious eigenvalue
-                correct_eigenvalue = eig_val
-                r, _ = self.A.getVecs()
-                eps.getEigenvector(i, r)
-                correct_eigenvector = r
+                ground_state_idx = i
                 break
         
-        if correct_eigenvalue is None:
-            # Fallback to first eigenpair if no non-unit eigenvalue found
-            r, _ = self.A.getVecs()
-            correct_eigenvalue = eps.getEigenpair(0, r, None)
-            correct_eigenvector = r
+        if ground_state_idx is None:
+            raise RuntimeError("No non-spurious eigenvalues found")
         
-        # Print eigenvalue information
+        # Set the ground state
+        self.ground_state = self.eigenfunctions[ground_state_idx]
+        self.ground_state_eigenvalue = self.eigenvalues[ground_state_idx]
+        
         if MPI.COMM_WORLD.rank == 0:
-            print(f"Selected ground state eigenvalue: {correct_eigenvalue:.6f}")
-            print(f"Relative error: {abs(correct_eigenvalue - 2 * np.pi**2) / (2 * np.pi**2):.2e}")
+            print(f"Selected ground state (mode {ground_state_idx}): {self.ground_state_eigenvalue:.6f}")
+        
+        return self.ground_state
 
-        # Create function and assign eigenvector
-        phi = fem.Function(self.V_space)
-        phi.x.array[:] = correct_eigenvector.getArray()
+    def plot_filtered_ground_state_2d(self, plot_type='abs', title=None, save_path=None, show=True):
+        """Plot the filtered ground state in 2D."""
+        if self.ground_state is None:
+            self.get_filtered_ground_state()
+        
+        if title is None:
+            title = f'Filtered Ground State |φ|² (E={self.ground_state_eigenvalue:.4f})'
+        
+        self.plot_2d(plot_type=plot_type, title=title, save_path=save_path, show=show)
 
-        # Normalize the eigenfunction
-        norm_sq = fem.assemble_scalar(fem.form(ufl.inner(phi, phi) * ufl.dx))
-        if np.abs(norm_sq) > 0:
-            phi.x.array[:] /= np.sqrt(norm_sq)
+    def plot_filtered_ground_state_3d(self, plot_type='abs', title=None, save_path=None, show=True):
+        """Plot the filtered ground state in 3D."""
+        if self.ground_state is None:
+            self.get_filtered_ground_state()
+        
+        if title is None:
+            title = f'Filtered Ground State (3D) |φ|² (E={self.ground_state_eigenvalue:.4f})'
+        
+        self.plot_3d(plot_type=plot_type, title=title, save_path=save_path, show=show)
 
-        self.ground_state = phi
-        self.ground_state_eigenvalue = correct_eigenvalue
-        return phi
+    def get_ground_state_as_initial_condition(self):
+        """
+        Get the filtered ground state nodal values for initial condition.
+        Returns the array of values at the current DOFs.
+        """
+        if self.ground_state is None:
+            self.get_filtered_ground_state()
+        
+        # Return the nodal values directly
+        return self.ground_state.x.array.copy()
 
     def solve_eigenvalues(self, n_eigenvalues=10, max_energy=None, tol=1e-8):
         """
@@ -476,7 +473,7 @@ class SchrodingerSolver:
         
         # Set potential
         if potential is not None:
-            self.potential = Potential(potential)
+            self.potential = potential
         else:
             self.potential = None
         self.potential_function = fem.Function(self.V)
@@ -489,6 +486,8 @@ class SchrodingerSolver:
             
         # Set analytical solution (default to free particle solution)
         if analytical_solution is None:
+            self.analytical_solution = None
+        elif analytical_solution == "exact":
             self.analytical_solution = lambda x, t: (
                 np.sin(np.pi * x[0]) * np.sin(np.pi * x[1]) * 
                 np.exp(-1j * 2 * np.pi**2 * t)
@@ -546,7 +545,15 @@ class SchrodingerSolver:
     def _create_initial_solution(self):
         """Create the initial solution from the initial condition."""
         u_init = fem.Function(self.V, dtype=np.complex128)
-        u_init.interpolate(self.initial_condition)
+        
+        # Check if initial_condition is a callable function or already values
+        if callable(self.initial_condition):
+            # It's a function, interpolate it
+            u_init.interpolate(self.initial_condition)
+        else:
+            # It's already an array of values, assign directly
+            u_init.x.array[:] = self.initial_condition
+        
         return u_init
     
     def _create_variational_forms(self, t_current: float):
@@ -731,7 +738,7 @@ class SchrodingerSolver:
             ax.legend()
             
             if save_path is None:
-                save_path = f'figures/solution_3d_{plot_type}_t{t:.4f}.svg'
+                save_path = f'figures/solution_3d_{plot_type}_t{t:.4f}.png'
             
         else:  # 2D plots
             if plot_type == 'both':
@@ -777,7 +784,7 @@ class SchrodingerSolver:
                 plt.tight_layout()
                 
                 if save_path is None:
-                    save_path = f'figures/solution_both_t{t:.4f}.svg'
+                    save_path = f'figures/solution_both_t{t:.4f}.png'
             else:
                 if self.analytical_solution is not None:
                     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
@@ -814,9 +821,9 @@ class SchrodingerSolver:
                     ax2.set_ylabel('y')
                 
                 if save_path is None:
-                    save_path = f'figures/solution_{plot_type}_t{t:.4f}.svg'
+                    save_path = f'figures/solution_{plot_type}_t{t:.4f}.png'
         
-        plt.savefig(save_path, format='svg', dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Solution plot saved to: {save_path}")
 
@@ -977,9 +984,9 @@ class SchrodingerSolver:
         plt.legend()
         
         if save_path is None:
-            save_path = 'figures/error_evolution.svg'
+            save_path = 'figures/error_evolution.png'
         
-        plt.savefig(save_path, format='svg', dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Error evolution plot saved to: {save_path}")
     
@@ -1022,9 +1029,9 @@ def run_example():
     model_potential = Potential()
 
     solver = StationarySchrodingerSolver(
-        nx=128, 
-        ny=128, 
-        potential=real_double_well_potential
+        nx=64, 
+        ny=64, 
+        potential=model_potential
         )
     
     # Solve for multiple eigenvalues
@@ -1041,23 +1048,26 @@ def run_example():
     # Plot all eigenfunctions
     solver.plot_all_eigenfunctions(n_modes=6, save_path='figures/all_eigenfunctions.png', show=False)
     
-    # Also solve for ground state (for backward compatibility)
-    phi0 = solver.solve_ground_state()
-    solver.plot_2d(save_path='figures/ground_state_2d.png', show=False)
-    solver.plot_3d(save_path='figures/ground_state_3d.png', show=False)
+    # Solve for filtered ground state and plot it
+    print("Solving for filtered ground state...")
+    phi0 = solver.get_filtered_ground_state()
+    solver.plot_filtered_ground_state_2d(save_path='figures/filtered_ground_state_2d.png', show=False)
+    solver.plot_filtered_ground_state_3d(save_path='figures/filtered_ground_state_3d.png', show=False)
+    
+    # Get ground state as initial condition for time-dependent solver
+    initial_condition = solver.get_ground_state_as_initial_condition()
+    print(f"Ground state eigenvalue: {solver.ground_state_eigenvalue:.6f}")
     
     # Create solver with default settings
     solver = SchrodingerSolver(
         nx=64, 
         ny=64,
-        T_final=2.0, 
-        N_time=100000,
-        # potential=step_potential,
-        # initial_condition=phi0,
+        T_final=1.0, 
+        N_time=10000,
+        potential=model_potential,
+        initial_condition=initial_condition,  # Use filtered ground state
         analytical_solution=None
     )
-
-    exit()
     
     # Solve the equation
     results = solver.solve(store_solutions=True, compute_errors=True)

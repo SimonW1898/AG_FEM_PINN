@@ -286,7 +286,8 @@ class Potential(ABC):
             plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
             print(f"Static plot saved to: {save_path}")
         
-        plt.show()
+        else:
+            plt.show()
     
     def _plot_animated(self, n_points: int, time_range: Tuple[float, float], 
                        n_frames: int, save_path: Optional[str] = None, **kwargs):
@@ -341,8 +342,9 @@ class Potential(ABC):
             # Save animation as GIF
             anim.save(save_path, writer='pillow', fps=5)
             print(f"2D animation saved to: {save_path}")
-        
-        plt.show()
+            plt.close()
+        else:
+            plt.show()
         return anim
     
     def _plot_animated_3d(self, n_points: int, time_range: Tuple[float, float], 
@@ -417,8 +419,9 @@ class Potential(ABC):
             # Save animation as GIF
             anim.save(save_path, writer='pillow', fps=5)
             print(f"3D animation saved to: {save_path}")
-        
-        plt.show()
+            plt.close()
+        else:
+            plt.show()
         return anim
     
     def evaluate_time_dependent(self, x: np.ndarray, t: Union[float, np.ndarray], **kwargs) -> np.ndarray:
@@ -538,9 +541,11 @@ class ModelPotential(Potential):
                  time_dependent: bool = False, 
                  x_depth: float = 1.0, 
                  y_depth: float = 1.0,
+                 make_asymmetric: bool = False,
                  **kwargs):
         self.x_depth = x_depth
         self.y_depth = y_depth
+        self.make_asymmetric = make_asymmetric
         super().__init__("Model (Harmonic x + Double Well y)", time_dependent=time_dependent, **kwargs)
     
     def _potential_function(self, x: np.ndarray) -> np.ndarray:
@@ -559,19 +564,26 @@ class ModelPotential(Potential):
         """
         # 1D harmonic in x-direction (zero at x=0,1, minimum at x=0.5)
         V_harmonic_x = self.x_depth * 4 * ((x[0] - 0.5)**2 - 0.25)
+
+        if self.make_asymmetric:
+            V_harmonic_x += 0.01 * (x[0] - 0.5)
         
         # 1D double well in y-direction (zero at y=0,0.5,1, minima at y≈0.146,0.854)
         V_double_well_y = self.y_depth * 64 * ((x[1] - 0.5)**4 - 0.25 * (x[1] - 0.5)**2)
+
+        if self.make_asymmetric:
+            V_double_well_y += 0.01 * (x[1] - 0.5)
         
-        return V_harmonic_x + V_double_well_y
+        return V_harmonic_x + V_double_well_y + self.x_depth + self.y_depth
 
 
 # Example usage and testing
 if __name__ == "__main__":
     # Test Time-Dependent Model Potential
     V = ModelPotential(
-        x_depth=1000.0,
-        y_depth=1000.0,
+        x_depth=1.0,
+        y_depth=1.0,
+        make_asymmetric=True,
         time_dependent=True,
         laser_amplitude=0.4,
         laser_omega=5.0,
@@ -580,7 +592,7 @@ if __name__ == "__main__":
         laser_envelope_type='gaussian',
         laser_spatial_profile_type='uniform',
         laser_charge=1.0,
-        laser_polarization='linear_xy'
+        laser_polarization='y'
     )
     
     # Create coordinate grid

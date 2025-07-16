@@ -10,6 +10,7 @@
 \usepackage{mathrsfs}        % for nice script letters
 \usepackage{upgreek}         % for upright greek letters like \upvarphi
 \usepackage{dsfont}          % for \mathds{1}
+\usepackage{graphicx}        % for \includegraphics
 
 % Theorem environments
 \theoremstyle{definition}
@@ -64,9 +65,23 @@
 
 The time-dependent Schrödinger equation lies at the heart of quantum mechanics, dictating how the state of a quantum system evolves under the influence of potential energy landscapes. In contrast to classical mechanics, which predicts trajectories, the Schrödinger equation predicts wave functions, whose squared modulus yields probability densities. This shift from deterministic paths to probabilistic amplitudes marks a fundamental departure from classical intuition.
 
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/Figure1.pdf}
+    \caption{}
+    \label{fig:fig1}
+\end{figure}
+
 From fundamental atomic models to emergent quantum technologies, the ability to solve the Schrödinger equation accurately and efficiently is essential for predicting quantum behavior. Yet, in most realistic settings, analytic solutions are unavailable. This necessitates the development of robust numerical approaches.
 
 In molecular systems, the Schrödinger equation governs the motion of nuclei on potential energy surfaces obtained from electronic structure calculations. Within the Born-Oppenheimer approximation, these nuclei behave as quantum particles subject to high-dimensional, often anharmonic potentials. For example, when modeling the movement of atoms within a molecule, it is common to reduce the full-dimensional problem to a few key internal coordinates, such as bond stretching or rotations. Even in such simplified spaces, the time evolution of a quantum state can reveal complex phenomena such as tunneling (where a particle passes through a potential barrier it classically could not cross), interference (where overlapping wave functions amplify or cancel each other), or wave packet spreading (the dispersion of a localized quantum state over time)—none of which are accessible through classical approximations.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/Figure2.pdf}
+    \caption{}
+    \label{fig:fig2}
+\end{figure}
 
 This report investigates the numerical solution of the time-dependent Schrödinger equation in two spatial dimensions, a setting that permits the exploration of realistic molecular scenarios while maintaining computational tractability. Specifically, we consider model systems where the potential energy surface encodes features representative of atomic motions, reactive pathways, or coupled physical effects.
 

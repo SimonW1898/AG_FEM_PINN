@@ -91,47 +91,58 @@ Through this dual lens, the report aims to highlight both the challenges and opp
 
 \section{Finite Element Method}
 
-\subsection*{Schrödinger Equation}
+\subsection*{Model Problem: Schrödinger Equation}
 
 The Schrödinger equation is a second-order partial differential equation that describes the time evolution of a quantum system, represented by its wave function. \\
 Let $\Omega \subset \mathbb{R}^n$ be a bounded Lipschitz domain and let $V : \Omega \times [0,T] \to \mathbb{R}$ be a given potential. We say that a function
 \[
 u : \Omega \times [0,T] \to \mathbb{C}
 \]
-is a \textbf{solution to the time-dependent Schrödinger equation} if it satisfies the following system of equations:
-\begin{align}
+is a \textbf{solution to the time-dependent Schrödinger equation, with homogeneous Dirichlet boundary conditions} if it satisfies the following system of equations:
+\begin{align*}
     i \partial_t u(x,t) &= - \Delta u(x,t) + V(x,t) u(x,t), \quad x \in \Omega, \ t > 0,\\
     \partial_t u(x,0) &= u_0(x), \quad x \in \Omega,\\
-    \quad u(x,t) &= g(x,t), \quad x \in \Gamma_D, t>0,\\
-    \quad \partial_n u(x,t) &= h(x,t), \quad x \in \Gamma_N, t> 0.
-\end{align}
+    \quad u(x,t) &= 0, \quad x \in \partial \Omega, \ t > 0,
+\end{align*}
 
 
-where $\Delta$ is the Laplacian operator, $V(x,t)$ is the potential, and $u(x,t)$ is the wave function and the boundary of the domain is split into Dirichlet boundary $\Gamma_D$ and Neumann boundary $\Gamma_N$ (homogeneous Dirichlet?). 
-The initial condition is given by $u_0(x)$.
+where $\Delta$ is the Laplacian operator, $V(x,t)$ is a potential, $\partial \Omega$ is the boundary of the domain $\Omega$, and $u_0(x)$ is the initial condition at time $t=0$. 
+
+
+Should we include this description?\\
+The function $u(x,t)$ represents the wave function of the quantum system at position $x$ and time $t$. The term $i \partial_t u(x,t)$ represents the time evolution of the wave function, while the term $-\Delta u(x,t)$ accounts for the kinetic energy of the system. The potential term $V(x,t) u(x,t)$ describes the interaction of the wave function with an external potential.
+
 
 \subsection*{Weak Formulation of Schrödinger's Equation}
+To derive the weak formulation of the time dependent Schrödinger equation, we multiply the equation by a test function $v(x,t) \in H_0^1(\Omega; \mathbb{C})$ and integrate over the domain $\Omega$. 
+The Sobolev space $H_0^1(\Omega; \mathbb{C})$ consists of functions that are square integrable and have square integrable weak derivatives, with the additional condition that they vanish on the boundary $\partial \Omega$.\\
+By utilizing Greens' identity, we can transform the second order differential equation into a first order weak formulation:
+\begin{align*}
+  \int_{\Omega} \Delta u \bar{v} \, dx &= \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx - \int_{\partial \Omega} \nabla u \cdot n \bar{v} \, ds,
+\end{align*}
 
-$v$ is not needed to be in Sobolev space can also do other spaces but when is it elegant to do the transition to Sobolev spaces? \\
 Multiplying the Schrödinger equation by a test function $v(x,t) \in H_0^1(\Omega; \mathbb{C})$ and integrating over the domain $\Omega$, we obtain:
 
 \begin{equation}
     i \int_{\Omega} \left( \partial_t u \right) \bar{v} \, dx = - \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u \bar{v} \, dx,
 \end{equation}
 
-where $v := v(x,t)$ is a test function in $H_0^1(\Omega; \mathbb{C})$.
+where $v$ is called the test function and $\bar{v}$ is its complex conjugate, which comes from the inner product in the Sobolev space $H_0^1(\Omega; \mathbb{C})$.
 
-\subsection*{Time discretisation of Schrödinger's Equation}
-
-Using an implicit time discretisation scheme, we can rewrite the time derivative as:
+\subsection*{Time Integration with the Euler Method}
+The Euler method is a simple and widely used numerical method for solving  differential equations.
+It approximates the time derivative with a first order finite difference scheme. In the following we will use the backward Euler method, which gives an approximation of the time derivative as follows:
 \begin{equation}
     \partial_t u(x,t) \approx \frac{u^{t + \dt} - u^t}{\dt},
 \end{equation}
-We need to choose what to handle implicit and explicit on the right hand side of the weak formulation.
-In the following, we will treat the term with the potential $V(x,t)$ explicitly and the term with the Laplacian implicitly.
-This simplifies the numerical treatment of the mass term, because the potential can introduce stiffness in the system, if it is large and has rapid variations.
+The backward euler method allows us to solve the Schrödinger equation iteratively in each time step by finite elements method in space.
+The time resolution is controlled by the time step size $\dt$, where $t$ is the current time and $t + \dt$ is the next time step.
+
+The backward Euler method has a remaining error of order $\mathcal{O}(\dt)$, which means that the error decreases linearly with the time step size. 
+This is sufficient for many applications, but for higher accuracy, higher order methods such as the Crank-Nicolson method or Runge-Kutta methods can be used.
 
 
+\subsection*{Weak Formulation with Time Integration}
 The weak form of the Schrödinger equation becomes:
 \begin{equation}
     i \int_{\Omega} \left( \frac{u^{t + \dt} - u^t}{\dt} \right) \bar{v} \, dx = - \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u^{t+\dt} \bar{v} \, dx

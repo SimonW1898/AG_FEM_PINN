@@ -26,13 +26,15 @@ from abc import ABC, abstractmethod
 from potentials import ModelPotential
 
 class Potential:
-    def __init__(self, func: Callable[[np.ndarray, float], np.ndarray]):
+    def __init__(self):
         self.func = ModelPotential(
+            x_depth=1000.0,
+            y_depth=1000.0,
             time_dependent=True,
             laser_amplitude=0.4,
             laser_omega=5.0,
-            laser_pulse_duration=0.4,
-            laser_center_time=0.5,
+            laser_pulse_duration=1.0,
+            laser_center_time=5.0,
             laser_envelope_type='gaussian',
             laser_spatial_profile_type='uniform',
             laser_charge=1.0,
@@ -41,7 +43,7 @@ class Potential:
         self.t = 0.0
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
-        return self.func(x, self.t)
+        return self.func(x, self.t) + np.min(self.func(x, self.t))
 
 
 class StationarySchrodingerSolver:
@@ -52,27 +54,43 @@ class StationarySchrodingerSolver:
     """
 
     def __init__(self,
-                 potential: Callable[[np.ndarray], np.ndarray],
-                 nx: int = 64,
-                 ny: int = 64):
+                 potential: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+                 nx: int = 16,
+                 ny: int = 16):
         self.nx = nx
         self.ny = ny
         self.mesh = mesh.create_unit_square(MPI.COMM_WORLD, nx, ny, mesh.CellType.triangle)
         self.V_space = fem.functionspace(self.mesh, ("Lagrange", 1))
 
+        # Initialize potential function
         self.V_func = fem.Function(self.V_space)
-        self.V_func.interpolate(potential)
+        if potential is not None:
+            self.V_func.interpolate(potential)
+        else:
+            # Set to zero potential
+            self.V_func.x.array[:] = 0.0
 
         self.A, self.M = self._assemble_operators()
         self.ground_state = None  # to be computed later
+        self.eigenvalues = None
+        self.eigenfunctions = None
 
     def _assemble_operators(self):
         u = ufl.TrialFunction(self.V_space)
         v = ufl.TestFunction(self.V_space)
 
-        a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx + ufl.inner(self.V_func * u, v) * ufl.dx
+        # Stiffness matrix: ∫∇u·∇v dx
+        a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
+        
+        # Add potential term if present
+        if self.V_func is not None and np.any(self.V_func.x.array != 0):
+            print("Adding potential term")
+            a += ufl.inner(self.V_func * u, v) * ufl.dx
+            
+        # Mass matrix: ∫u·v dx
         m = ufl.inner(u, v) * ufl.dx
 
+        # Assemble matrices with boundary conditions
         A = fem.petsc.assemble_matrix(fem.form(a), bcs=self._get_bcs())
         A.assemble()
         M = fem.petsc.assemble_matrix(fem.form(m), bcs=self._get_bcs())
@@ -81,36 +99,282 @@ class StationarySchrodingerSolver:
         return A, M
 
     def _get_bcs(self):
-        self.mesh.topology.create_connectivity(self.mesh.topology.dim - 1, self.mesh.topology.dim)
-        facets = dolfinx.mesh.exterior_facet_indices(self.mesh.topology)
-        dofs = fem.locate_dofs_topological(self.V_space, self.mesh.topology.dim - 1, facets)
-        zero = fem.Constant(self.mesh, PETSc.ScalarType(0.0))
-        return [fem.dirichletbc(zero, dofs, self.V_space)]
+        # Create connectivity for boundary facets
+        tdim = self.mesh.topology.dim
+        fdim = tdim - 1
+        self.mesh.topology.create_connectivity(fdim, tdim)
+        
+        # Get boundary facets
+        boundary_facets = mesh.exterior_facet_indices(self.mesh.topology)
+        
+        # Locate boundary DOFs
+        boundary_dofs = fem.locate_dofs_topological(self.V_space, fdim, boundary_facets)
+        
+        # Create zero Dirichlet boundary condition
+        uD = fem.Function(self.V_space)
+        uD.interpolate(lambda x: np.zeros(x.shape[1]))
+        
+        return [fem.dirichletbc(uD, boundary_dofs)]
 
     def solve_ground_state(self):
         """Solve for the lowest eigenvalue and eigenfunction."""
-        eps = SLEPc.EPS().create()
+        # Create eigenvalue solver
+        eps = SLEPc.EPS().create(MPI.COMM_WORLD)
         eps.setOperators(self.A, self.M)
-        eps.setProblemType(SLEPc.EPS.ProblemType.GHEP)
+        eps.setProblemType(SLEPc.EPS.ProblemType.GHEP)  # Generalized Hermitian
         eps.setWhichEigenpairs(SLEPc.EPS.Which.SMALLEST_REAL)
         # eps.setDimensions(1, PETSc.DECIDE)
         eps.setFromOptions()
         eps.solve()
 
-        if eps.getConverged() < 1:
+        # Check convergence
+        n_conv = eps.getConverged()
+        if n_conv < 1:
             raise RuntimeError("No eigenpairs found.")
 
-        vr, _ = self.A.getVecs()
-        eps.getEigenpair(0, vr, None)
+        # Print first few eigenvalues to identify the correct ground state
+        if MPI.COMM_WORLD.rank == 0:
+            print(f"Number of converged eigenpairs: {n_conv}")
+            print("First few eigenvalues:")
+            for i in range(min(n_conv, 5)):
+                eig_val = eps.getEigenvalue(i)
+                print(f"  Eigenvalue {i}: {eig_val:.6f}")
+            print(f"Expected ground state eigenvalue (2π²): {2 * np.pi**2:.6f}")
+            print()
 
-        phi = fem.Function(self.V_space, dtype=PETSc.ScalarType)
-        phi.x.array[:] = vr.array[:]
+        # Find the eigenfunction with non-unit eigenvalue (the correct ground state)
+        correct_eigenvalue = None
+        correct_eigenvector = None
+        
+        for i in range(min(n_conv, 5)):
+            eig_val = eps.getEigenvalue(i)
+            if abs(eig_val - 1.0) > 0.1:  # Not the spurious eigenvalue
+                correct_eigenvalue = eig_val
+                r, _ = self.A.getVecs()
+                eps.getEigenvector(i, r)
+                correct_eigenvector = r
+                break
+        
+        if correct_eigenvalue is None:
+            # Fallback to first eigenpair if no non-unit eigenvalue found
+            r, _ = self.A.getVecs()
+            correct_eigenvalue = eps.getEigenpair(0, r, None)
+            correct_eigenvector = r
+        
+        # Print eigenvalue information
+        if MPI.COMM_WORLD.rank == 0:
+            print(f"Selected ground state eigenvalue: {correct_eigenvalue:.6f}")
+            print(f"Relative error: {abs(correct_eigenvalue - 2 * np.pi**2) / (2 * np.pi**2):.2e}")
 
+        # Create function and assign eigenvector
+        phi = fem.Function(self.V_space)
+        phi.x.array[:] = correct_eigenvector.getArray()
+
+        # Normalize the eigenfunction
         norm_sq = fem.assemble_scalar(fem.form(ufl.inner(phi, phi) * ufl.dx))
-        phi.x.array[:] /= np.sqrt(norm_sq)
+        if np.abs(norm_sq) > 0:
+            phi.x.array[:] /= np.sqrt(norm_sq)
 
         self.ground_state = phi
+        self.ground_state_eigenvalue = correct_eigenvalue
         return phi
+
+    def solve_eigenvalues(self, n_eigenvalues=10, max_energy=None, tol=1e-8):
+        """
+        Solve for multiple eigenvalues with robust filtering.
+        
+        Args:
+            n_eigenvalues: Number of eigenvalues to compute
+            max_energy: Maximum energy cutoff (removes high-frequency spurious modes)
+            tol: Tolerance for eigenvalue solver
+        """
+        # Create eigenvalue solver
+        eps = SLEPc.EPS().create(MPI.COMM_WORLD)
+        eps.setOperators(self.A, self.M)
+        eps.setProblemType(SLEPc.EPS.ProblemType.GHEP)
+        eps.setWhichEigenpairs(SLEPc.EPS.Which.SMALLEST_REAL)
+        
+        # Request more eigenvalues than needed to filter later
+        eps.setDimensions(min(n_eigenvalues * 2, self.V_space.dofmap.index_map.size_global))
+        eps.setTolerances(tol)
+        
+        # Set solver options for better performance
+        eps.setFromOptions()
+        eps.solve()
+
+        # Check convergence
+        n_conv = eps.getConverged()
+        if n_conv < 1:
+            raise RuntimeError("No eigenpairs found.")
+
+        # Extract eigenvalues and eigenvectors
+        eigenvalues = []
+        eigenvectors = []
+        
+        for i in range(n_conv):
+            eig_val = eps.getEigenvalue(i)
+            if eig_val.imag != 0:
+                continue  # Skip complex eigenvalues
+            
+            eig_val = eig_val.real
+            
+            # Apply energy cutoff
+            if max_energy is not None and eig_val > max_energy:
+                continue
+                
+            r, _ = self.A.getVecs()
+            eps.getEigenvector(i, r)
+            
+            eigenvalues.append(eig_val)
+            eigenvectors.append(r.getArray().copy())
+            
+            if len(eigenvalues) >= n_eigenvalues:
+                break
+
+        if MPI.COMM_WORLD.rank == 0:
+            print(f"Found {len(eigenvalues)} valid eigenvalues out of {n_conv} converged")
+            print("Eigenvalues:")
+            for i, eig_val in enumerate(eigenvalues[:10]):  # Show first 10
+                print(f"  λ_{i}: {eig_val:.6f}")
+
+        # Create eigenfunction objects
+        eigenfunctions = []
+        for i, eigvec in enumerate(eigenvectors):
+            phi = fem.Function(self.V_space)
+            phi.x.array[:] = eigvec
+            
+            # Normalize
+            norm_sq = fem.assemble_scalar(fem.form(ufl.inner(phi, phi) * ufl.dx))
+            if np.abs(norm_sq) > 0:
+                phi.x.array[:] /= np.sqrt(norm_sq)
+            
+            eigenfunctions.append(phi)
+
+        self.eigenvalues = eigenvalues
+        self.eigenfunctions = eigenfunctions
+        return eigenvalues, eigenfunctions
+
+    def estimate_energy_cutoff(self, safety_factor=0.1):
+        """
+        Estimate reasonable energy cutoff based on grid spacing.
+        
+        Args:
+            safety_factor: Fraction of max representable energy to use as cutoff
+        """
+        # Estimate based on grid spacing
+        h = 1.0 / max(self.nx, self.ny)  # Approximate grid spacing
+        max_representable_energy = (np.pi / h) ** 2  # Nyquist frequency squared
+        return safety_factor * max_representable_energy
+
+    def plot_eigenfunction(self, mode_index=0, plot_type='abs', title=None, save_path=None, show=True):
+        """Plot a specific eigenfunction."""
+        if self.eigenfunctions is None:
+            raise RuntimeError("Must solve eigenvalues first")
+            
+        if mode_index >= len(self.eigenfunctions):
+            raise IndexError(f"Mode index {mode_index} out of range")
+            
+        phi = self.eigenfunctions[mode_index]
+        eig_val = self.eigenvalues[mode_index]
+        
+        if title is None:
+            title = f'Mode {mode_index}, E = {eig_val:.4f}'
+        
+        X = self.V_space.tabulate_dof_coordinates()
+        if plot_type == 'real':
+            Z = phi.x.array.real
+            label = 'Re(ϕ)'
+        elif plot_type == 'imag':
+            Z = phi.x.array.imag
+            label = 'Im(ϕ)'
+        else:
+            Z = np.abs(phi.x.array)**2
+            label = '|ϕ|²'
+
+        plt.figure(figsize=(8, 6))
+        sc = plt.scatter(X[:, 0], X[:, 1], c=Z, cmap='viridis', s=10)
+        plt.colorbar(sc, label=label)
+        plt.title(title)
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.axis('equal')
+        plt.tight_layout()
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
+
+    def plot_eigenvalue_spectrum(self, max_modes=20, save_path=None, show=True):
+        """Plot the eigenvalue spectrum."""
+        if self.eigenvalues is None:
+            raise RuntimeError("Must solve eigenvalues first")
+            
+        n_plot = min(len(self.eigenvalues), max_modes)
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(n_plot), self.eigenvalues[:n_plot], 'bo-', markersize=6)
+        plt.xlabel('Mode Index')
+        plt.ylabel('Eigenvalue')
+        plt.title('Eigenvalue Spectrum')
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
+
+    def plot_all_eigenfunctions(self, n_modes=6, plot_type='abs', save_path=None, show=True):
+        """Plot multiple eigenfunctions in a grid."""
+        if self.eigenfunctions is None:
+            raise RuntimeError("Must solve eigenvalues first")
+            
+        n_plot = min(n_modes, len(self.eigenfunctions))
+        
+        # Calculate grid dimensions
+        cols = 3
+        rows = (n_plot + cols - 1) // cols
+        
+        fig, axes = plt.subplots(rows, cols, figsize=(15, 5*rows))
+        if n_plot == 1:
+            axes = [axes]
+        elif rows == 1:
+            axes = axes
+        else:
+            axes = axes.flatten()
+        
+        X = self.V_space.tabulate_dof_coordinates()
+        
+        for i in range(n_plot):
+            phi = self.eigenfunctions[i]
+            eig_val = self.eigenvalues[i]
+            
+            if plot_type == 'real':
+                Z = phi.x.array.real
+                label = 'Re(ϕ)'
+            elif plot_type == 'imag':
+                Z = phi.x.array.imag
+                label = 'Im(ϕ)'
+            else:
+                Z = np.abs(phi.x.array)**2
+                label = '|ϕ|²'
+            
+            sc = axes[i].scatter(X[:, 0], X[:, 1], c=Z, cmap='viridis', s=8)
+            axes[i].set_title(f'Mode {i}, E = {eig_val:.4f}')
+            axes[i].set_xlabel('x')
+            axes[i].set_ylabel('y')
+            axes[i].axis('equal')
+            plt.colorbar(sc, ax=axes[i], label=label)
+        
+        # Hide unused subplots
+        for i in range(n_plot, len(axes)):
+            axes[i].set_visible(False)
+        
+        plt.tight_layout()
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        if show:
+            plt.show()
 
     def plot_2d(self, plot_type='abs', title='Ground state', save_path=None, show=True):
         if self.ground_state is None:
@@ -730,12 +994,57 @@ def run_example():
         return t * 0.2 if (x[0] < 0.5 and x[1] < 0.5) else 0
 
     def harmonic_potential(x):
-        return 1 * ((x[0] - 0.5)**2 + (x[1] - 0.5)**2)
+        return 100.0 * ((x[0] - 0.5)**2 + (x[1] - 0.5)**2)
 
-    solver = StationarySchrodingerSolver(potential=harmonic_potential)
+    def double_well_potential(x):
+        # Implements a high step from x=0.25 to x=0.75, zero otherwise
+        # x has shape (dim, N_points)
+        # Returns an array of potentials for all points
+        high_value = 100000
+        return np.where((x[0] >= 0.25) & (x[0] <= 0.75), high_value, 0.0)
+
+    def asymmetric_double_well_potential(x):
+        # Implements a high step from x=0.25 to x=0.75, zero otherwise
+        # x has shape (dim, N_points)
+        # Returns an array of potentials for all points
+        high_value = 100000
+        return np.where((x[0] >= 0.25) & (x[0] <= 0.75), high_value, 0.0) + np.where((x[0] >= 0.25), high_value // 2, 0.0)
+
+
+    def real_double_well_potential(x):
+        return 100000 * ((x[0] - 0.5)**4 - 0.25 * (x[0] - 0.5)**2) + 0.01 *x[0]
+
+    def step_potential(x):
+        # x has shape (dim, N_points)
+        # Return an array of potentials for all points
+        return np.where((x[0] < 0.5) & (x[1] < 0.5), 1000.0, 0.0)
+
+    model_potential = Potential()
+
+    solver = StationarySchrodingerSolver(
+        nx=128, 
+        ny=128, 
+        potential=real_double_well_potential
+        )
+    
+    # Solve for multiple eigenvalues
+    print("Solving for multiple eigenvalues...")
+    max_energy = solver.estimate_energy_cutoff(safety_factor=0.2)
+    eigenvalues, eigenfunctions = solver.solve_eigenvalues(
+        n_eigenvalues=6, 
+        max_energy=max_energy
+    )
+    
+    # Plot eigenvalue spectrum
+    solver.plot_eigenvalue_spectrum(save_path='figures/eigenvalue_spectrum.png', show=False)
+    
+    # Plot all eigenfunctions
+    solver.plot_all_eigenfunctions(n_modes=6, save_path='figures/all_eigenfunctions.png', show=False)
+    
+    # Also solve for ground state (for backward compatibility)
     phi0 = solver.solve_ground_state()
-    solver.plot_2d(save_path='figures/ground_state_2d.png')
-    solver.plot_3d(save_path='figures/ground_state_3d.png')
+    solver.plot_2d(save_path='figures/ground_state_2d.png', show=False)
+    solver.plot_3d(save_path='figures/ground_state_3d.png', show=False)
     
     # Create solver with default settings
     solver = SchrodingerSolver(
@@ -747,6 +1056,8 @@ def run_example():
         # initial_condition=phi0,
         analytical_solution=None
     )
+
+    exit()
     
     # Solve the equation
     results = solver.solve(store_solutions=True, compute_errors=True)

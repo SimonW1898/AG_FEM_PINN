@@ -230,7 +230,7 @@ class Potential(ABC):
         return X, V
     
     def plot(self, n_points: int = 100, time_range: Tuple[float, float] = (0, 1), 
-             n_frames: int = 50, plot_3d: bool = False, **kwargs):
+             n_frames: int = 50, plot_3d: bool = False, save_path: Optional[str] = None, **kwargs):
         """
         Plot potential (only implemented for 2D potentials).
         
@@ -239,17 +239,18 @@ class Potential(ABC):
         - time_range: (t_min, t_max) for animation if time_dependent=True
         - n_frames: Number of frames for animation
         - plot_3d: If True, create 3D surface plot (2D contour if False)
+        - save_path: Optional path to save the plot/animation
         - **kwargs: Additional parameters for the potential
         """
         if self.time_dependent:
             if plot_3d:
-                self._plot_animated_3d(n_points, time_range, n_frames, **kwargs)
+                self._plot_animated_3d(n_points, time_range, n_frames, save_path, **kwargs)
             else:
-                self._plot_animated(n_points, time_range, n_frames, **kwargs)
+                self._plot_animated(n_points, time_range, n_frames, save_path, **kwargs)
         else:
-            self._plot_static(n_points, **kwargs)
+            self._plot_static(n_points, save_path, **kwargs)
     
-    def _plot_static(self, n_points: int, **kwargs):
+    def _plot_static(self, n_points: int, save_path: Optional[str] = None, **kwargs):
         """Plot static 2D potential."""
         X, V = self.get_array(n_points, **kwargs)
         if X.shape[0] != 2:
@@ -280,20 +281,30 @@ class Potential(ABC):
         plt.colorbar(surf, ax=ax2, shrink=0.5)
         
         plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
+            print(f"Static plot saved to: {save_path}")
+        
         plt.show()
     
     def _plot_animated(self, n_points: int, time_range: Tuple[float, float], 
-                       n_frames: int, **kwargs):
+                       n_frames: int, save_path: Optional[str] = None, **kwargs):
         """Plot animated 2D potential."""
         from matplotlib.animation import FuncAnimation
         
-        # Create coordinate grid
-        X, _ = self.get_array(n_points, **kwargs)
-        if X.shape[0] != 2:
-            raise ValueError("Plotting only implemented for 2D potentials")
+        # Create coordinate grid using the same method as get_array
+        ranges = np.array([[0, 1], [0, 1]])  # Default range
+        grids = [np.linspace(ranges[i,0], ranges[i,1], n_points) for i in range(2)]
+        X_mesh = np.meshgrid(*grids, indexing='ij')
         
-        X1 = X[0].reshape(n_points, n_points)
-        X2 = X[1].reshape(n_points, n_points)
+        # Reshape to (dim, N) array for evaluation
+        X = np.array([x.flatten() for x in X_mesh])
+        
+        # Reshape back to 2D grid for plotting
+        X1 = X_mesh[0]  # Already in correct shape (n_points, n_points)
+        X2 = X_mesh[1]  # Already in correct shape (n_points, n_points)
+        
         times = np.linspace(time_range[0], time_range[1], n_frames)
         
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -325,21 +336,32 @@ class Potential(ABC):
             return [im]
         
         anim = FuncAnimation(fig, animate, frames=n_frames, interval=100, repeat=True, blit=True)
+        
+        if save_path:
+            # Save animation as GIF
+            anim.save(save_path, writer='pillow', fps=5)
+            print(f"2D animation saved to: {save_path}")
+        
         plt.show()
         return anim
     
     def _plot_animated_3d(self, n_points: int, time_range: Tuple[float, float], 
-                          n_frames: int, **kwargs):
+                          n_frames: int, save_path: Optional[str] = None, **kwargs):
         """Plot animated 3D surface potential."""
         from matplotlib.animation import FuncAnimation
         
-        # Create coordinate grid
-        X, _ = self.get_array(n_points, **kwargs)
-        if X.shape[0] != 2:
-            raise ValueError("Plotting only implemented for 2D potentials")
+        # Create coordinate grid using the same method as get_array
+        ranges = np.array([[0, 1], [0, 1]])  # Default range
+        grids = [np.linspace(ranges[i,0], ranges[i,1], n_points) for i in range(2)]
+        X_mesh = np.meshgrid(*grids, indexing='ij')
         
-        X1 = X[0].reshape(n_points, n_points)
-        X2 = X[1].reshape(n_points, n_points)
+        # Reshape to (dim, N) array for evaluation
+        X = np.array([x.flatten() for x in X_mesh])
+        
+        # Get coordinates for plotting (flattened for plot_trisurf)
+        X_coords = X[0]  # x coordinates
+        Y_coords = X[1]  # y coordinates
+        
         times = np.linspace(time_range[0], time_range[1], n_frames)
         
         fig = plt.figure(figsize=(10, 8))
@@ -351,11 +373,15 @@ class Potential(ABC):
             V_all.extend(self.evaluate_time_dependent(X, t, **kwargs).flatten())
         vmin, vmax = min(V_all), max(V_all)
         
-        # Initial surface plot
+        print(f"3D Animation: V range [{vmin:.4f}, {vmax:.4f}]")
+        print(f"3D Animation: Using {len(X_coords)} points")
+        
+        # Initial surface plot using plot_trisurf (like in schroedinger.py)
         V0 = self.evaluate_time_dependent(X, times[0], **kwargs)
-        V0 = V0.reshape(n_points, n_points)
-        surf = ax.plot_surface(X1, X2, V0, cmap='viridis', alpha=0.8, 
-                              vmin=vmin, vmax=vmax, linewidth=0, antialiased=True)
+        print(f"3D Animation: Initial V0 shape: {V0.shape}, min: {V0.min():.4f}, max: {V0.max():.4f}")
+        
+        surf = ax.plot_trisurf(X_coords, Y_coords, V0, cmap='viridis', alpha=0.8, 
+                              linewidth=0, antialiased=True)
         
         ax.set_xlabel('x')
         ax.set_ylabel('y')
@@ -370,10 +396,9 @@ class Potential(ABC):
             ax.clear()
             t = times[frame]
             V = self.evaluate_time_dependent(X, t, **kwargs)
-            V = V.reshape(n_points, n_points)
             
-            surf = ax.plot_surface(X1, X2, V, cmap='viridis', alpha=0.8,
-                                  vmin=vmin, vmax=vmax, linewidth=0, antialiased=True)
+            surf = ax.plot_trisurf(X_coords, Y_coords, V, cmap='viridis', alpha=0.8,
+                                  linewidth=0, antialiased=True)
             
             ax.set_xlabel('x')
             ax.set_ylabel('y')
@@ -387,6 +412,12 @@ class Potential(ABC):
             return [surf]
         
         anim = FuncAnimation(fig, animate, frames=n_frames, interval=100, repeat=True, blit=True)
+        
+        if save_path:
+            # Save animation as GIF
+            anim.save(save_path, writer='pillow', fps=5)
+            print(f"3D animation saved to: {save_path}")
+        
         plt.show()
         return anim
     
@@ -503,10 +534,16 @@ class ModelPotential(Potential):
     This creates a 2D potential with harmonic confinement in x and double well structure in y.
     """
     
-    def __init__(self, time_dependent: bool = False, **kwargs):
+    def __init__(self, 
+                 time_dependent: bool = False, 
+                 x_depth: float = 1.0, 
+                 y_depth: float = 1.0,
+                 **kwargs):
+        self.x_depth = x_depth
+        self.y_depth = y_depth
         super().__init__("Model (Harmonic x + Double Well y)", time_dependent=time_dependent, **kwargs)
     
-    def _potential_function(self, x: np.ndarray, x_depth: float = 1.0, y_depth: float = 1.0) -> np.ndarray:
+    def _potential_function(self, x: np.ndarray) -> np.ndarray:
         """
         Model potential function combining 1D harmonic and 1D double well.
         
@@ -521,10 +558,10 @@ class ModelPotential(Potential):
         - and V_double_well(y) = y_depth * 64 * ((y - 0.5)^4 - 0.25 * (y - 0.5)^2)
         """
         # 1D harmonic in x-direction (zero at x=0,1, minimum at x=0.5)
-        V_harmonic_x = x_depth * 4 * ((x[0] - 0.5)**2 - 0.25)
+        V_harmonic_x = self.x_depth * 4 * ((x[0] - 0.5)**2 - 0.25)
         
         # 1D double well in y-direction (zero at y=0,0.5,1, minima at y≈0.146,0.854)
-        V_double_well_y = y_depth * 64 * ((x[1] - 0.5)**4 - 0.25 * (x[1] - 0.5)**2)
+        V_double_well_y = self.y_depth * 64 * ((x[1] - 0.5)**4 - 0.25 * (x[1] - 0.5)**2)
         
         return V_harmonic_x + V_double_well_y
 
@@ -533,6 +570,8 @@ class ModelPotential(Potential):
 if __name__ == "__main__":
     # Test Time-Dependent Model Potential
     V = ModelPotential(
+        x_depth=1000.0,
+        y_depth=1000.0,
         time_dependent=True,
         laser_amplitude=0.4,
         laser_omega=5.0,
@@ -553,10 +592,11 @@ if __name__ == "__main__":
     
     # Evaluate potential at constant time
     print(V(coords, 0.5).shape)  # Should print: (10000,)
+    print(V(coords, 0.5))
 
     # Plot time-dependent model potential animation (3D)
     print("Plotting Time-Dependent Model Potential Animation (3D)...")
-    V.plot(time_range=(0, 1), n_frames=30, plot_3d=True, x_depth=1.0, y_depth=1.0)
+    V.plot(time_range=(0, 1), n_frames=30, plot_3d=True, save_path='figures/model_potential_3d_animation.gif')
     
     
 

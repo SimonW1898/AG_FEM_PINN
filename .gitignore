@@ -10,22 +10,15 @@ wheels/
 .venv/lib/
 
 # Dev container files
-.devcontainer/
+# .devcontainer/
+# *.json
 
 # Dolfinx Tutorial
 dolfinx-tutorial/
 
-*.png
-*.jpg
-
-*.log
 
 # PyTorch model files
 # *.pt
 
-# sample points numpy files
-*.npz
-
 .gitignore
 
-*.json

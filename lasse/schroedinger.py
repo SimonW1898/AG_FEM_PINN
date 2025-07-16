@@ -13,6 +13,7 @@ with homogeneous Dirichlet boundary conditions on the unit square [0,1]².
 
 import numpy as np
 import tqdm
+import os
 import dolfinx
 from dolfinx import fem, mesh
 from dolfinx.fem.petsc import LinearProblem
@@ -23,49 +24,30 @@ from slepc4py import SLEPc
 import matplotlib.pyplot as plt
 from typing import Callable, Optional, Union, Tuple, List, Any
 from abc import ABC, abstractmethod
-from potentials import ModelPotential, ModelPotential2
+from potentials import ModelPotential
 
-class Potential:
-    def __init__(self):
-        # self.func = ModelPotential(
-        #     x_depth=200.0,
-        #     y_depth=300.0, # make double well dominate over harmonic potential
-        #     make_asymmetric=True, # To assure we get a localized ground state
-        #     time_dependent=True, # If False, ignore the rest of the parameters
-        #     laser_amplitude=500,
-        #     laser_omega=5.0,
-        #     laser_pulse_duration=0.4,
-        #     laser_center_time=0.5,
-        #     laser_envelope_type='gaussian',
-        #     laser_spatial_profile_type='uniform',
-        #     laser_charge=1.0,
-        #     laser_polarization='linear_xy' # y: make only double well wiggle
-        # )
-        self.func = ModelPotential2(
-            a=5000.0,
-            b=100000.0,
-            c=20000.0,
-            make_asymmetric=True,
-            time_dependent=True, # If False, ignore the rest of the parameters
-            laser_amplitude=5000,
-            laser_omega=5.0,
-            laser_pulse_duration=0.4,
-            laser_center_time=0.5,
-            laser_envelope_type='gaussian',
-            laser_spatial_profile_type='uniform',
-            laser_charge=1.0,
-            laser_polarization='linear_xy' # y: make only double well wiggle
-        )
-        self.t = 0.0
+# Global plotting configuration
+WAVEFUNCTION_COLOR = 'royalblue'
+WAVEFUNCTION_ALPHA = 0.9
+POTENTIAL_CMAP = 'viridis'
+POTENTIAL_ALPHA = 0.9
+WAVEFUNCTION_2D_CMAP = 'viridis'
+INITIAL_SOLUTION_COLOR = 'darkorange'
 
-    def __call__(self, x: np.ndarray) -> np.ndarray:
-        # Check if the underlying function is time-dependent
-        if self.func.time_dependent:
-            # Time-dependent case: call with (x, t)
-            return self.func(x, self.t)
-        else:
-            # Static case: call with only x
-            return self.func(x)
+# Font size configuration for consistency
+PLOT_TITLE_FONTSIZE = 14
+PLOT_LABEL_FONTSIZE = 12
+PLOT_TICK_FONTSIZE = 10
+
+# Configure matplotlib for consistent font sizes
+plt.rcParams.update({
+    'font.size': PLOT_TICK_FONTSIZE,
+    'axes.titlesize': PLOT_TITLE_FONTSIZE,
+    'axes.labelsize': PLOT_LABEL_FONTSIZE,
+    'xtick.labelsize': PLOT_TICK_FONTSIZE,
+    'ytick.labelsize': PLOT_TICK_FONTSIZE,
+    'legend.fontsize': PLOT_TICK_FONTSIZE
+})
 
 
 class StationarySchrodingerSolver:
@@ -284,43 +266,49 @@ class StationarySchrodingerSolver:
         max_representable_energy = (np.pi / h) ** 2  # Nyquist frequency squared
         return safety_factor * max_representable_energy
 
-    def plot_eigenfunction(self, mode_index=0, plot_type='abs', title=None, save_path=None, show=True):
-        """Plot a specific eigenfunction."""
+    def plot_eigenfunction(self, mode_index: int, plot_type: str = 'real', 
+                          save_path: Optional[str] = None, show: bool = False, title: Optional[str] = None):
+        """Plot a single eigenfunction."""
         if self.eigenfunctions is None:
-            raise RuntimeError("Must solve eigenvalues first")
-            
+            raise ValueError("No eigenfunctions computed. Run solve_eigenvalues() first.")
+        
         if mode_index >= len(self.eigenfunctions):
-            raise IndexError(f"Mode index {mode_index} out of range")
-            
+            raise ValueError(f"Mode index {mode_index} out of range. Only {len(self.eigenfunctions)} modes available.")
+        
+        # Get coordinates
+        X = self.V_space.tabulate_dof_coordinates()
+        
         phi = self.eigenfunctions[mode_index]
         eig_val = self.eigenvalues[mode_index]
         
         if title is None:
             title = f'Mode {mode_index}, E = {eig_val:.4f}'
         
-        X = self.V_space.tabulate_dof_coordinates()
         if plot_type == 'real':
             Z = phi.x.array.real
-            label = 'Re(ϕ)'
+            label = 'Re(u)'
         elif plot_type == 'imag':
             Z = phi.x.array.imag
-            label = 'Im(ϕ)'
-        else:
+            label = 'Im(u)'
+        elif plot_type == 'abs':
             Z = np.abs(phi.x.array)**2
-            label = '|ϕ|²'
-
-        plt.figure(figsize=(8, 6))
-        sc = plt.scatter(X[:, 0], X[:, 1], c=Z, cmap='viridis', s=10)
-        plt.colorbar(sc, label=label)
-        plt.title(title)
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.axis('equal')
-        plt.tight_layout()
+            label = '|u|²'
+        else:
+            raise ValueError("plot_type must be 'real', 'imag', or 'abs'")
+        
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111)
+        scatter = ax.scatter(X[:, 0], X[:, 1], c=Z, cmap=WAVEFUNCTION_2D_CMAP, s=20)
+        ax.set_title(title)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        plt.colorbar(scatter, ax=ax, label=label)
         if save_path:
-            plt.savefig(save_path, dpi=300)
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
         if show:
             plt.show()
+        else:
+            plt.close()
 
     def plot_eigenvalue_spectrum(self, max_modes=20, save_path=None, show=True):
         """Plot the eigenvalue spectrum."""
@@ -341,6 +329,7 @@ class StationarySchrodingerSolver:
             plt.savefig(save_path, dpi=300)
         if show:
             plt.show()
+        plt.close()
 
     def plot_all_eigenfunctions(self, n_modes=6, plot_type='abs', save_path=None, show=True):
         """Plot multiple eigenfunctions in a grid."""
@@ -369,15 +358,15 @@ class StationarySchrodingerSolver:
             
             if plot_type == 'real':
                 Z = phi.x.array.real
-                label = 'Re(ϕ)'
+                label = 'Re(u)'
             elif plot_type == 'imag':
                 Z = phi.x.array.imag
-                label = 'Im(ϕ)'
+                label = 'Im(u)'
             else:
                 Z = np.abs(phi.x.array)**2
-                label = '|ϕ|²'
+                label = '|u|²'
             
-            sc = axes[i].scatter(X[:, 0], X[:, 1], c=Z, cmap='viridis', s=8)
+            sc = axes[i].scatter(X[:, 0], X[:, 1], c=Z, cmap=WAVEFUNCTION_2D_CMAP, s=8)
             axes[i].set_title(f'Mode {i}, E = {eig_val:.4f}')
             axes[i].set_xlabel('x')
             axes[i].set_ylabel('y')
@@ -393,6 +382,7 @@ class StationarySchrodingerSolver:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
         if show:
             plt.show()
+        plt.close()
 
     def plot_2d(self, plot_type='abs', title='Ground state', save_path=None, show=True):
         if self.ground_state is None:
@@ -401,16 +391,16 @@ class StationarySchrodingerSolver:
         X = self.V_space.tabulate_dof_coordinates()
         if plot_type == 'real':
             Z = self.ground_state.x.array.real
-            label = 'Re(ϕ)'
+            label = 'Re(u)'
         elif plot_type == 'imag':
             Z = self.ground_state.x.array.imag
-            label = 'Im(ϕ)'
+            label = 'Im(u)'
         else:
             Z = np.abs(self.ground_state.x.array)**2
-            label = '|ϕ|²'
+            label = '|u|²'
 
         plt.figure(figsize=(6, 5))
-        sc = plt.scatter(X[:, 0], X[:, 1], c=Z, cmap='viridis', s=10)
+        sc = plt.scatter(X[:, 0], X[:, 1], c=Z, cmap=WAVEFUNCTION_2D_CMAP, s=10)
         plt.colorbar(sc, label=label)
         plt.title(title)
         plt.xlabel('x')
@@ -421,6 +411,7 @@ class StationarySchrodingerSolver:
             plt.savefig(save_path, dpi=300)
         if show:
             plt.show()
+        plt.close()
 
     def plot_3d(self, plot_type='abs', title='Ground state (3D)', save_path=None, show=True):
         if self.ground_state is None:
@@ -429,25 +420,77 @@ class StationarySchrodingerSolver:
         X = self.V_space.tabulate_dof_coordinates()
         if plot_type == 'real':
             Z = self.ground_state.x.array.real
-            label = 'Re(ϕ)'
+            label = 'Re(u)'
         elif plot_type == 'imag':
             Z = self.ground_state.x.array.imag
-            label = 'Im(ϕ)'
+            label = 'Im(u)'
         else:
             Z = np.abs(self.ground_state.x.array)**2
-            label = '|ϕ|²'
+            label = '|u|²'
 
-        fig = plt.figure(figsize=(8, 6))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot_trisurf(X[:, 0], X[:, 1], Z, cmap='viridis', linewidth=0)
+        ax.plot_trisurf(X[:, 0], X[:, 1], Z, color=WAVEFUNCTION_COLOR, linewidth=0, alpha=WAVEFUNCTION_ALPHA)
         ax.set_title(title)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel(label)
+        ax.view_init(elev=30, azim=45)
+        # Adjust layout for 3D plots using set_box_aspect for better control
+        ax.set_box_aspect(None, zoom=0.85)
         if save_path:
-            plt.savefig(save_path, dpi=300)
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
         if show:
             plt.show()
+        else:
+            plt.close()
+
+    def plot_eigenfunction_3d(self, mode_index: int, plot_type: str = 'real', 
+                             save_path: Optional[str] = None, show: bool = False, title: Optional[str] = None):
+        """Plot a single eigenfunction in 3D."""
+        if self.eigenfunctions is None:
+            raise ValueError("No eigenfunctions computed. Run solve_eigenvalues() first.")
+        
+        if mode_index >= len(self.eigenfunctions):
+            raise ValueError(f"Mode index {mode_index} out of range. Only {len(self.eigenfunctions)} modes available.")
+        
+        # Get coordinates
+        X = self.V_space.tabulate_dof_coordinates()
+        
+        phi = self.eigenfunctions[mode_index]
+        eig_val = self.eigenvalues[mode_index]
+        
+        if title is None:
+            title = f'Mode {mode_index}, E = {eig_val:.4f}'
+        
+        if plot_type == 'real':
+            Z = phi.x.array.real
+            label = 'Re(u)'
+        elif plot_type == 'imag':
+            Z = phi.x.array.imag
+            label = 'Im(u)'
+        elif plot_type == 'abs':
+            Z = np.abs(phi.x.array)**2
+            label = '|u|²'
+        else:
+            raise ValueError("plot_type must be 'real', 'imag', or 'abs'")
+        
+        fig = plt.figure(figsize=(12, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_trisurf(X[:, 0], X[:, 1], Z, color=WAVEFUNCTION_COLOR, linewidth=0, alpha=WAVEFUNCTION_ALPHA)
+        ax.set_title(title)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel(label)
+        ax.view_init(elev=30, azim=45)
+        # Adjust layout for 3D plots using set_box_aspect for better control
+        ax.set_box_aspect(None, zoom=0.85)
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        if show:
+            plt.show()
+        else:
+            plt.close()
 
 
 class SchrodingerSolver:
@@ -616,7 +659,8 @@ class SchrodingerSolver:
         
         return u_new
     
-    def solve(self, store_solutions: bool = True, compute_errors: bool = True, save_interval: int = 1000):
+    def solve(self, store_solutions: bool = True, compute_errors: bool = True, save_interval: int = 1000, 
+              save_frames: bool = False, frame_plot_type: str = 'abs'):
         """
         Execute the time integration to solve the Schrödinger equation.
         
@@ -624,11 +668,18 @@ class SchrodingerSolver:
         - store_solutions: Whether to store solutions at each time step
         - compute_errors: Whether to compute L2 errors (requires analytical solution)
         - save_interval: Interval for saving solutions and computing diagnostics (default: 1 = every step)
+        - save_frames: If True, save solution plots at each saved time step to figures/solve_frames/
+        - frame_plot_type: Plot type for saved frames ('real', 'imag', 'abs')
         
         Returns:
         - Dictionary with times, solutions (optional), and errors (optional)
         """
         print("Starting time integration...")
+        
+        # Create frame directory if saving frames
+        if save_frames:
+            frame_dir = 'figures/solve_frames'
+            os.makedirs(frame_dir, exist_ok=True)
         
         # Initialize with initial condition
         self.u_previous = self._create_initial_solution()
@@ -647,6 +698,11 @@ class SchrodingerSolver:
         initial_norm = self._compute_l2_norm(self.u_previous)
         if MPI.COMM_WORLD.rank == 0:
             print(f"Initial L2 norm: {initial_norm:.6f}")
+        
+        # Save initial frame if requested
+        if save_frames:
+            frame_path = os.path.join(frame_dir, f'solution_t{0.0:.6f}.png')
+            self.plot_solution(0.0, plot_type=frame_plot_type, save_path=frame_path, show=False, is_animation=True)
         
         # Time stepping loop with tqdm progress bar
         for n in tqdm.tqdm(range(1, self.N_time + 1), desc="Time integration", unit="step"):
@@ -667,6 +723,11 @@ class SchrodingerSolver:
                 # Store the current time
                 self.saved_times.append(t_current)
                 
+                # Save frame if requested
+                if save_frames:
+                    frame_path = os.path.join(frame_dir, f'solution_t{t_current:.6f}.png')
+                    self.plot_solution(t_current, plot_type=frame_plot_type, save_path=frame_path, show=False, is_animation=True)
+                
                 # Compute L2 norm of current solution
                 l2_norm = self._compute_l2_norm(self.u_current)
                 
@@ -680,6 +741,9 @@ class SchrodingerSolver:
             self.u_previous.x.array[:] = self.u_current.x.array[:]
         
         print("\nTime integration completed!")
+        
+        if save_frames:
+            print(f"Solution frames saved to: {frame_dir}")
         
         # Return results
         results = {'times': self.saved_times}
@@ -729,7 +793,7 @@ class SchrodingerSolver:
         time_idx = np.argmin(np.abs(np.array(self.saved_times) - t))
         return self.solutions[time_idx]
     
-    def plot_solution(self, t: float, plot_type: str = 'both', save_path: Optional[str] = None, plot_3d: bool = False, show: bool = True):
+    def plot_solution(self, t: float, plot_type: str = 'both', save_path: Optional[str] = None, plot_3d: bool = False, show: bool = True, is_animation: bool = False):
         """
         Plot the numerical and analytical solutions at a given time using matplotlib.
         
@@ -739,6 +803,7 @@ class SchrodingerSolver:
         - save_path: Optional path to save the plot
         - plot_3d: If True, create a 3D surface plot
         - show: Whether to display the plot (default: True)
+        - is_animation: If True, don't use special initial solution color (for animations)
         """
         # Get solution at time t
         u_solution = self.get_solution_at_time(t)
@@ -765,29 +830,77 @@ class SchrodingerSolver:
                 values_exact = u_exact.x.array.imag if self.analytical_solution is not None else None
                 title = 'Imaginary'
             else:  # abs
-                values_num = np.abs(u_solution.x.array)
-                values_exact = np.abs(u_exact.x.array) if self.analytical_solution is not None else None
+                values_num = np.abs(u_solution.x.array)**2
+                values_exact = np.abs(u_exact.x.array)**2 if self.analytical_solution is not None else None
                 title = 'Absolute'
             
-            # Plot numerical solution
+            # Calculate z-limits based on initial condition for consistency
+            if not hasattr(self, '_plot_zlimits') or self._plot_zlimits is None:
+                # Handle both numpy arrays and DOLFINx Functions
+                if hasattr(self.initial_condition, 'x'):
+                    # DOLFINx Function
+                    if plot_type == 'real':
+                        first_values = self.initial_condition.x.array.real
+                    elif plot_type == 'imag':
+                        first_values = self.initial_condition.x.array.imag
+                    else:  # abs
+                        first_values = np.abs(self.initial_condition.x.array)**2
+                else:
+                    # numpy array - use first solution instead
+                    first_solution = self.get_solution_at_time(0.0)
+                    if plot_type == 'real':
+                        first_values = first_solution.x.array.real
+                    elif plot_type == 'imag':
+                        first_values = first_solution.x.array.imag
+                    else:  # abs
+                        first_values = np.abs(first_solution.x.array)**2
+                
+                if self.analytical_solution is not None:
+                    u_exact_first = fem.Function(self.V, dtype=np.complex128)
+                    u_exact_first.interpolate(lambda x: self.analytical_solution(x, 0.0))
+                    if plot_type == 'real':
+                        first_values_exact = u_exact_first.x.array.real
+                    elif plot_type == 'imag':
+                        first_values_exact = u_exact_first.x.array.imag
+                    else:  # abs
+                        first_values_exact = np.abs(u_exact_first.x.array)**2
+                    
+                    zmin = min(first_values.min(), first_values_exact.min())
+                    zmax = max(first_values.max(), first_values_exact.max())
+                else:
+                    zmin = first_values.min()
+                    zmax = first_values.max()
+                
+                # Add some padding (handle edge cases)
+                z_range = zmax - zmin
+                if z_range < 1e-10:  # Very small range
+                    padding = 0.1 * max(abs(zmin), abs(zmax), 0.1)
+                else:
+                    padding = 0.1 * z_range
+                self._plot_zlimits = (zmin - padding, zmax + padding)
+            
+            # Use initial solution color for static plots at t=0.0, otherwise use regular wavefunction color
+            numerical_color = INITIAL_SOLUTION_COLOR if (np.isclose(t, 0.0) and not is_animation) else WAVEFUNCTION_COLOR
             surf_num = ax.plot_trisurf(X[:, 0], X[:, 1], values_num, 
-                                     color='royalblue', linewidth=0, alpha=0.5,
-                                     label='Numerical')
+                                     color=numerical_color, linewidth=0, alpha=WAVEFUNCTION_ALPHA)
             
             # Plot analytical solution if available
             if self.analytical_solution is not None:
                 surf_exact = ax.plot_trisurf(X[:, 0], X[:, 1], values_exact,
-                                           color='crimson', linewidth=0, alpha=0.5,
-                                           label='Analytical')
+                                           color='crimson', linewidth=0, alpha=WAVEFUNCTION_ALPHA)
             
-            ax.set_title(f'{title} part at t={t:.4f}')
+            ax.set_title(f't = {t:.4f}')
             ax.set_xlabel('x')
             ax.set_ylabel('y')
-            ax.set_zlabel('u')
-            ax.legend()
+            ax.set_zlabel('|u|²')
+            ax.set_zlim(self._plot_zlimits)
+            ax.view_init(elev=30, azim=45)
             
             if save_path is None:
                 save_path = f'figures/solution_3d_{plot_type}_t{t:.4f}.png'
+            
+            # Adjust layout for 3D plots using set_box_aspect for better control
+            ax.set_box_aspect(None, zoom=0.85)
             
         else:  # 2D plots
             if plot_type == 'both':
@@ -796,8 +909,8 @@ class SchrodingerSolver:
                 # Real part - Numerical
                 scatter1 = ax1.scatter(X[:, 0], X[:, 1], 
                                      c=u_solution.x.array.real,
-                                     cmap="viridis")
-                ax1.set_title(f'Real part (Numerical) at t={t:.4f}')
+                                     cmap=WAVEFUNCTION_2D_CMAP)
+                ax1.set_title(f't = {t:.4f}')
                 plt.colorbar(scatter1, ax=ax1)
                 ax1.set_xlabel('x')
                 ax1.set_ylabel('y')
@@ -805,8 +918,8 @@ class SchrodingerSolver:
                 # Imaginary part - Numerical
                 scatter2 = ax2.scatter(X[:, 0], X[:, 1], 
                                      c=u_solution.x.array.imag,
-                                     cmap="viridis")
-                ax2.set_title(f'Imaginary part (Numerical) at t={t:.4f}')
+                                     cmap=WAVEFUNCTION_2D_CMAP)
+                ax2.set_title(f't = {t:.4f}')
                 plt.colorbar(scatter2, ax=ax2)
                 ax2.set_xlabel('x')
                 ax2.set_ylabel('y')
@@ -815,8 +928,8 @@ class SchrodingerSolver:
                     # Real part - Analytical
                     scatter3 = ax3.scatter(X[:, 0], X[:, 1],
                                          c=u_exact.x.array.real,
-                                         cmap="viridis")
-                    ax3.set_title(f'Real part (Analytical) at t={t:.4f}')
+                                         cmap=WAVEFUNCTION_2D_CMAP)
+                    ax3.set_title(f't = {t:.4f}')
                     plt.colorbar(scatter3, ax=ax3)
                     ax3.set_xlabel('x')
                     ax3.set_ylabel('y')
@@ -824,8 +937,8 @@ class SchrodingerSolver:
                     # Imaginary part - Analytical
                     scatter4 = ax4.scatter(X[:, 0], X[:, 1],
                                          c=u_exact.x.array.imag,
-                                         cmap="viridis")
-                    ax4.set_title(f'Imaginary part (Analytical) at t={t:.4f}')
+                                         cmap=WAVEFUNCTION_2D_CMAP)
+                    ax4.set_title(f't = {t:.4f}')
                     plt.colorbar(scatter4, ax=ax4)
                     ax4.set_xlabel('x')
                     ax4.set_ylabel('y')
@@ -850,22 +963,22 @@ class SchrodingerSolver:
                     values_exact = u_exact.x.array.imag if self.analytical_solution is not None else None
                     title = 'Imaginary'
                 else:  # abs
-                    values_num = np.abs(u_solution.x.array)
-                    values_exact = np.abs(u_exact.x.array) if self.analytical_solution is not None else None
+                    values_num = np.abs(u_solution.x.array)**2
+                    values_exact = np.abs(u_exact.x.array)**2 if self.analytical_solution is not None else None
                     title = 'Absolute'
                 
                 # Numerical solution
-                scatter1 = ax1.scatter(X[:, 0], X[:, 1], c=values_num, cmap="viridis")
+                scatter1 = ax1.scatter(X[:, 0], X[:, 1], c=values_num, cmap=WAVEFUNCTION_2D_CMAP)
                 plt.colorbar(scatter1, ax=ax1)
-                ax1.set_title(f'{title} part (Numerical) at t={t:.4f}')
+                ax1.set_title(f't = {t:.4f}')
                 ax1.set_xlabel('x')
                 ax1.set_ylabel('y')
                 
                 # Analytical solution
                 if self.analytical_solution is not None:
-                    scatter2 = ax2.scatter(X[:, 0], X[:, 1], c=values_exact, cmap="viridis")
+                    scatter2 = ax2.scatter(X[:, 0], X[:, 1], c=values_exact, cmap=WAVEFUNCTION_2D_CMAP)
                     plt.colorbar(scatter2, ax=ax2)
-                    ax2.set_title(f'{title} part (Analytical) at t={t:.4f}')
+                    ax2.set_title(f't = {t:.4f}')
                     ax2.set_xlabel('x')
                     ax2.set_ylabel('y')
                 
@@ -874,13 +987,14 @@ class SchrodingerSolver:
         
         if save_path:
             plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
-            print(f"Solution plot saved to: {save_path}")
+        print(f"Solution plot saved to: {save_path}")
         if show:
             plt.show()
         else:
             plt.close()
 
-    def animate_solution(self, plot_type: str = 'abs', plot_3d: bool = False, total_duration: float = 5.0, save_path: Optional[str] = None):
+    def animate_solution(self, plot_type: str = 'abs', plot_3d: bool = False, total_duration: float = 5.0, 
+                        save_path: Optional[str] = None, save_frames: bool = False):
         """
         Create an animation of the solution evolution over time.
         
@@ -889,11 +1003,17 @@ class SchrodingerSolver:
         - plot_3d: If True, create a 3D surface animation
         - total_duration: Total duration of the animation in seconds (default: 5.0)
         - save_path: Optional path to save the animation
+        - save_frames: If True, save individual frames to figures/animation_frames/
         """
         if not self.solutions:
             raise ValueError("No solutions stored. Run solve() with store_solutions=True")
             
         import matplotlib.animation as animation
+        
+        # Create frame directory if saving frames
+        if save_frames:
+            frame_dir = 'figures/animation_frames'
+            os.makedirs(frame_dir, exist_ok=True)
         
         # Get coordinates of degrees of freedom
         X = self.V.tabulate_dof_coordinates()
@@ -930,68 +1050,115 @@ class SchrodingerSolver:
             elif plot_type == 'imag':
                 return solution.x.array.imag
             else:  # abs
-                return np.abs(solution.x.array)
+                return np.abs(solution.x.array)**2
                 
-        # Get value range for consistent z-axis limits
-        vmin = min(get_values(sol).min() for sol in solutions_subset)
-        vmax = max(get_values(sol).max() for sol in solutions_subset)
+        # Get value range for consistent z-axis limits (use initial condition for consistency)
+        # Handle both numpy arrays and DOLFINx Functions
+        if hasattr(self.initial_condition, 'x'):
+            # DOLFINx Function
+            if plot_type == 'real':
+                first_values = self.initial_condition.x.array.real
+            elif plot_type == 'imag':
+                first_values = self.initial_condition.x.array.imag
+            else:  # abs
+                first_values = np.abs(self.initial_condition.x.array)**2
+        else:
+            # numpy array - use first solution instead
+            first_solution = self.get_solution_at_time(0.0)
+            if plot_type == 'real':
+                first_values = first_solution.x.array.real
+            elif plot_type == 'imag':
+                first_values = first_solution.x.array.imag
+            else:  # abs
+                first_values = np.abs(first_solution.x.array)**2
+            
         if self.analytical_solution is not None:
-            vmin_exact = min(get_values(None, True, i).min() for i in range(n_frames))
-            vmax_exact = max(get_values(None, True, i).max() for i in range(n_frames))
-            vmin = min(vmin, vmin_exact)
-            vmax = max(vmax, vmax_exact)
+            u_exact_first = fem.Function(self.V, dtype=np.complex128)
+            u_exact_first.interpolate(lambda x: self.analytical_solution(x, 0.0))
+            if plot_type == 'real':
+                first_values_exact = u_exact_first.x.array.real
+            elif plot_type == 'imag':
+                first_values_exact = u_exact_first.x.array.imag
+            else:  # abs
+                first_values_exact = np.abs(u_exact_first.x.array)**2
+            vmin = min(first_values.min(), first_values_exact.min())
+            vmax = max(first_values.max(), first_values_exact.max())
+        else:
+            vmin = first_values.min()
+            vmax = first_values.max()
+            
+        # Add some padding
+        padding = 0.1 * (vmax - vmin)
+        vmin -= padding
+        vmax += padding
         
         if plot_3d:
             # Initial surface plots
             surf_num = ax.plot_trisurf(X[:, 0], X[:, 1], get_values(solutions_subset[0]),
-                                     color='crimson', linewidth=0, alpha=0.5,
-                                     label='Numerical')
+                                     color=WAVEFUNCTION_COLOR, linewidth=0, alpha=WAVEFUNCTION_ALPHA)
             if self.analytical_solution is not None:
                 surf_exact = ax.plot_trisurf(X[:, 0], X[:, 1], get_values(None, True, 0),
-                                           color='royalblue', linewidth=0, alpha=0.5,
-                                           label='Analytical')
+                                           color='crimson', linewidth=0, alpha=WAVEFUNCTION_ALPHA)
             ax.set_xlabel('x')
             ax.set_ylabel('y')
-            ax.set_zlabel('u')
-            ax.legend()
+            if plot_type == 'real':
+                ax.set_zlabel('Re(u)')
+            elif plot_type == 'imag':
+                ax.set_zlabel('Im(u)')
+            else:  # abs
+                ax.set_zlabel('|u|²')
+            ax.set_zlim(vmin, vmax)
+            ax.view_init(elev=30, azim=45)
             
             def update(frame):
                 ax.clear()
                 values_num = get_values(solutions_subset[frame])
                 surf_num = ax.plot_trisurf(X[:, 0], X[:, 1], values_num,
-                                         color='crimson', linewidth=0, alpha=0.5,
-                                         label='Numerical')
+                                         color=WAVEFUNCTION_COLOR, linewidth=0, alpha=WAVEFUNCTION_ALPHA)
                 if self.analytical_solution is not None:
                     values_exact = get_values(None, True, frame)
                     surf_exact = ax.plot_trisurf(X[:, 0], X[:, 1], values_exact,
-                                               color='royalblue', linewidth=0, alpha=0.5,
-                                               label='Analytical')
+                                               color='crimson', linewidth=0, alpha=WAVEFUNCTION_ALPHA)
                 ax.set_title(f't = {times_subset[frame]:.4f}')
                 ax.set_xlabel('x')
                 ax.set_ylabel('y')
-                ax.set_zlabel('u')
+                if plot_type == 'real':
+                    ax.set_zlabel('Re(u)')
+                elif plot_type == 'imag':
+                    ax.set_zlabel('Im(u)')
+                else:  # abs
+                    ax.set_zlabel('|u|²')
                 ax.set_zlim(vmin, vmax)
-                ax.legend()
+                ax.view_init(elev=30, azim=45)
+                
+                # Apply consistent layout for animation frames
+                ax.set_box_aspect(None, zoom=0.85)
+                
+                # Save frame if requested
+                if save_frames:
+                    frame_path = os.path.join(frame_dir, f'frame_{frame:04d}.png')
+                    plt.savefig(frame_path, dpi=300, bbox_inches='tight')
+                
                 return surf_num,
         else:
             # Initial scatter plots
             scatter_num = ax1.scatter(X[:, 0], X[:, 1], c=get_values(solutions_subset[0]),
-                                    cmap='viridis', vmin=vmin, vmax=vmax)
+                                    cmap=WAVEFUNCTION_2D_CMAP, vmin=vmin, vmax=vmax)
             plt.colorbar(scatter_num, ax=ax1)
-            ax1.set_title('Numerical Solution')
+            ax1.set_title(f't = {times_subset[0]:.4f}')
             
             if self.analytical_solution is not None:
                 scatter_exact = ax2.scatter(X[:, 0], X[:, 1], c=get_values(None, True, 0),
-                                          cmap='viridis', vmin=vmin, vmax=vmax)
+                                          cmap=WAVEFUNCTION_2D_CMAP, vmin=vmin, vmax=vmax)
                 plt.colorbar(scatter_exact, ax=ax2)
-                ax2.set_title('Analytical Solution')
+                ax2.set_title(f't = {times_subset[0]:.4f}')
             
             def update(frame):
                 ax1.clear()
                 values_num = get_values(solutions_subset[frame])
                 scatter_num = ax1.scatter(X[:, 0], X[:, 1], c=values_num,
-                                        cmap='viridis', vmin=vmin, vmax=vmax)
-                ax1.set_title(f'Numerical Solution (t = {times_subset[frame]:.4f})')
+                                        cmap=WAVEFUNCTION_2D_CMAP, vmin=vmin, vmax=vmax)
+                ax1.set_title(f't = {times_subset[frame]:.4f}')
                 ax1.set_xlabel('x')
                 ax1.set_ylabel('y')
                 
@@ -999,10 +1166,15 @@ class SchrodingerSolver:
                     ax2.clear()
                     values_exact = get_values(None, True, frame)
                     scatter_exact = ax2.scatter(X[:, 0], X[:, 1], c=values_exact,
-                                              cmap='viridis', vmin=vmin, vmax=vmax)
-                    ax2.set_title(f'Analytical Solution (t = {times_subset[frame]:.4f})')
+                                              cmap=WAVEFUNCTION_2D_CMAP, vmin=vmin, vmax=vmax)
+                    ax2.set_title(f't = {times_subset[frame]:.4f}')
                     ax2.set_xlabel('x')
                     ax2.set_ylabel('y')
+                
+                # Save frame if requested
+                if save_frames:
+                    frame_path = os.path.join(frame_dir, f'frame_{frame:04d}.png')
+                    plt.savefig(frame_path, dpi=300, bbox_inches='tight')
                 
                 return scatter_num,
         
@@ -1013,8 +1185,11 @@ class SchrodingerSolver:
         # Save animation
         if save_path is None:
             save_path = f'figures/solution_animation_{plot_type}_{"3d" if plot_3d else "2d"}.gif'
-        anim.save(save_path, writer='pillow', fps=fps)
+        anim.save(save_path, writer='pillow', fps=int(fps))
         plt.close()
+        
+        if save_frames:
+            print(f"Animation frames saved to: {frame_dir}")
         print(f"Animation saved to: {save_path} ({n_frames} frames, {fps:.1f} fps, {total_duration}s duration)")
     
     def plot_error_evolution(self, save_path: Optional[str] = None):
@@ -1042,56 +1217,79 @@ def run_example():
     """Run example simulation and create visualizations."""
     print("\nRunning Schrödinger equation example...")
 
+    class ModelPotentialClass:
+        def __init__(self):
+            self.func = ModelPotential(
+                a=10000.0,
+                b=100000.0,
+                c=25000.0,
+                make_asymmetric=True,
+                time_dependent=True, # If False, ignore the rest of the parameters
+                laser_amplitude=5000,
+                laser_omega=3.0,
+                laser_pulse_duration=0.4,
+                laser_center_time=0.5,
+                laser_envelope_type='gaussian',
+                laser_spatial_profile_type='uniform',
+                laser_charge=1.0,
+                laser_polarization='linear_xy' # y: make only double well wiggle
+            )
+            self.t = 0.0
+
+        def __call__(self, x: np.ndarray) -> np.ndarray:
+            # Check if the underlying function is time-dependent
+            if self.func.time_dependent:
+                # Time-dependent case: call with (x, t)
+                return self.func(x, self.t)
+            else:
+                # Static case: call with only x
+                return self.func(x)
+
     # Create potential
-    model_potential = Potential()   
+    model_potential = ModelPotentialClass()   
 
     # Set time-independent potential
     model_potential.func.time_dependent = False
 
     # Create stationary solver
-    solver = StationarySchrodingerSolver(
+    stationary_solver = StationarySchrodingerSolver(
         nx=64, 
-        ny=64, 
+        ny=64,
         potential=model_potential
         )
     
     # Solve for multiple eigenvalues
     print("Solving for multiple eigenvalues...")
-    max_energy = solver.estimate_energy_cutoff(safety_factor=0.2)
-    eigenvalues, eigenfunctions = solver.solve_eigenvalues(
+    max_energy = stationary_solver.estimate_energy_cutoff(safety_factor=0.2)
+    eigenvalues, eigenfunctions = stationary_solver.solve_eigenvalues(
         n_eigenvalues=9, 
         max_energy=max_energy
     )
     
     # Plot eigenvalue spectrum
-    solver.plot_eigenvalue_spectrum(save_path='figures/eigenvalue_spectrum.png', show=False)
+    stationary_solver.plot_eigenvalue_spectrum(save_path='figures/eigenvalue_spectrum.png', show=False)
     
     # Plot all eigenfunctions
-    solver.plot_all_eigenfunctions(n_modes=9, save_path='figures/all_eigenfunctions.png', show=False)
+    stationary_solver.plot_all_eigenfunctions(n_modes=9, save_path='figures/all_eigenfunctions.png', show=False)
     
-    # Solve for filtered ground state and plot it
-    print("Solving for filtered ground state...")
-    phi0 = solver.get_filtered_ground_state()
-    solver.plot_filtered_ground_state_2d(save_path='figures/ground_state_2d.png', show=False)
-    solver.plot_filtered_ground_state_3d(save_path='figures/ground_state_3d.png', show=False)
+    # Get ground state as initial condition for time-dependent solver
+    initial_condition = stationary_solver.get_ground_state_as_initial_condition()
+    print(f"Ground state eigenvalue: {stationary_solver.ground_state_eigenvalue:.6f}")
+
+    # Set time-dependent potential
+    model_potential.func.time_dependent = True
 
     # Plot the potential used in the simulation
     print("\nCreating potential visualizations...")
     model_potential.func.plot(
         n_points=100,
         plot_3d=True,
-        save_path='figures/potential_animation_3d.gif'
+        save_path='figures/potential_animation_3d.gif',
+        save_frames=False  # Set to True to save individual frames
     )
     
-    # Get ground state as initial condition for time-dependent solver
-    initial_condition = solver.get_ground_state_as_initial_condition()
-    print(f"Ground state eigenvalue: {solver.ground_state_eigenvalue:.6f}")
-
-    # Set time-dependent potential
-    model_potential.func.time_dependent = True
-    
     # Create time-dependent solver, with the ground state as initial condition
-    solver = SchrodingerSolver(
+    time_solver = SchrodingerSolver(
         nx=64, 
         ny=64,
         T_final=1.0, 
@@ -1102,29 +1300,29 @@ def run_example():
     )
     
     # Solve the equation
-    results = solver.solve(store_solutions=True, compute_errors=True, save_interval=1000)
+    results = time_solver.solve(store_solutions=True, compute_errors=True, save_interval=1000, save_frames=False)  # Set to True to save individual frames
     
     # Plot error evolution
-    solver.plot_error_evolution(save_path='figures/error_evolution.png')
+    time_solver.plot_error_evolution(save_path='figures/error_evolution.png')
     
-    # Plot initial state
-    solver.plot_solution(0.0, plot_type='both', save_path='figures/initial_state_2d.png', show=False)
-    solver.plot_solution(0.0, plot_type='both', plot_3d=True, save_path='figures/initial_state_3d.png', show=False)
+    # Plot initial state (ground state) in 2D and 3D
+    print("\nPlotting initial state (ground state)...")
+    time_solver.plot_solution(0.0, plot_type='abs', save_path='figures/initial_state_2d.png', show=False)
+    time_solver.plot_solution(0.0, plot_type='abs', plot_3d=True, save_path='figures/initial_state_3d.png', show=False)
     
     # Plot final state in 2D and 3D
-    solver.plot_solution(solver.T_final, plot_type='abs', save_path='figures/final_2d.png', show=False)
-    solver.plot_solution(solver.T_final, plot_type='abs', plot_3d=True, save_path='figures/final_3d.png', show=False)
+    time_solver.plot_solution(time_solver.T_final, plot_type='abs', save_path='figures/final_state_2d.png', show=False)
+    time_solver.plot_solution(time_solver.T_final, plot_type='abs', plot_3d=True, save_path='figures/final_state_3d.png', show=False)
     
     # Create animations
-    solver.animate_solution(plot_type='abs', plot_3d=False, save_path='figures/animation_2d.gif')
-    solver.animate_solution(plot_type='abs', plot_3d=True, save_path='figures/animation_3d.gif')
+    time_solver.animate_solution(plot_type='abs', plot_3d=False, save_path='figures/animation_2d.gif', save_frames=False)
+    time_solver.animate_solution(plot_type='abs', plot_3d=True, save_path='figures/animation_3d.gif', save_frames=True)
     
-
     
-    return solver
+    return time_solver
 
 
 if __name__ == "__main__":
     # Run example
-    solver = run_example()
+    time_solver = run_example()
     

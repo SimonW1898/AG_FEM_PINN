@@ -1,32 +1,37 @@
 nohup: ignoring input
 /workspaces/new_repo_2/simon/PINN_tuning.py:71: SyntaxWarning: invalid escape sequence '\m'
   """ 
-Epoch    0 | Training Loss: 5.6835e-02 | Validation PDE Loss: 5.4968e-02
+Epoch    0 | Training Loss: 1.1726e-01 | Validation PDE Loss: 5.9236e-02
 Training Loss of one batch:
-Boundary Loss: 4.4289e-02, Initial Loss: 1.1414e-01, PDE Loss: 3.4159e-03
+Boundary Loss: 2.2472e-02, Initial Loss: 1.4230e-01, PDE Loss: 7.6357e-03, Non-trivial Loss: 2.2756e-01
 Validation Losses:
-Boundary Loss: 4.4283e-02, Initial Loss: 1.1721e-01, PDE Loss: 3.4128e-03
-Epoch  100 | Training Loss: 3.1512e-02 | Validation PDE Loss: 3.1768e-02
-Training Loss of one batch:
-Boundary Loss: 1.4913e-02, Initial Loss: 7.5265e-02, PDE Loss: 2.7296e-03
-Validation Losses:
-Boundary Loss: 1.4188e-02, Initial Loss: 7.8269e-02, PDE Loss: 2.8453e-03
-Epoch  200 | Training Loss: 2.5280e-02 | Validation PDE Loss: 2.5437e-02
-Training Loss of one batch:
-Boundary Loss: 1.3819e-02, Initial Loss: 5.8051e-02, PDE Loss: 3.0843e-03
-Validation Losses:
-Boundary Loss: 1.3118e-02, Initial Loss: 5.9711e-02, PDE Loss: 3.4815e-03
-Epoch  300 | Training Loss: 1.7404e-02 | Validation PDE Loss: 1.7499e-02
-Training Loss of one batch:
-Boundary Loss: 1.0696e-02, Initial Loss: 3.6517e-02, PDE Loss: 5.1025e-03
-Validation Losses:
-Boundary Loss: 1.0310e-02, Initial Loss: 3.6769e-02, PDE Loss: 5.4199e-03
-Epoch  400 | Training Loss: 1.2101e-02 | Validation PDE Loss: 1.2207e-02
-Training Loss of one batch:
-Boundary Loss: 9.8214e-03, Initial Loss: 2.1024e-02, PDE Loss: 5.3615e-03
-Validation Losses:
-Boundary Loss: 9.3834e-03, Initial Loss: 2.1489e-02, PDE Loss: 5.7500e-03
+Boundary Loss: 2.2620e-02, Initial Loss: 1.4746e-01, PDE Loss: 7.6306e-03, Non-trivial Loss: 2.2733e-01
 
-Final Validation PDE Loss: 8.6604e-03
+Epoch  100 | Training Loss: 7.9495e-02 | Validation PDE Loss: 5.1202e-02
+Training Loss of one batch:
+Boundary Loss: 7.8469e-02, Initial Loss: 7.5544e-02, PDE Loss: 1.3970e-03, Non-trivial Loss: 1.6354e-01
+Validation Losses:
+Boundary Loss: 7.7111e-02, Initial Loss: 7.5139e-02, PDE Loss: 1.3576e-03, Non-trivial Loss: 1.6414e-01
+
+Epoch  200 | Training Loss: 6.9939e-02 | Validation PDE Loss: 5.0220e-02
+Training Loss of one batch:
+Boundary Loss: 9.6956e-02, Initial Loss: 4.9438e-02, PDE Loss: 4.7756e-03, Non-trivial Loss: 1.2923e-01
+Validation Losses:
+Boundary Loss: 9.7298e-02, Initial Loss: 4.8293e-02, PDE Loss: 5.0699e-03, Non-trivial Loss: 1.2899e-01
+
+Epoch  300 | Training Loss: 6.1593e-02 | Validation PDE Loss: 4.6771e-02
+Training Loss of one batch:
+Boundary Loss: 1.0965e-01, Initial Loss: 2.6138e-02, PDE Loss: 3.8504e-03, Non-trivial Loss: 1.0647e-01
+Validation Losses:
+Boundary Loss: 1.1058e-01, Initial Loss: 2.5527e-02, PDE Loss: 4.2108e-03, Non-trivial Loss: 1.0547e-01
+
+Epoch  400 | Training Loss: 5.4688e-02 | Validation PDE Loss: 4.0811e-02
+Training Loss of one batch:
+Boundary Loss: 1.0740e-01, Initial Loss: 1.3285e-02, PDE Loss: 5.5797e-03, Non-trivial Loss: 9.4989e-02
+Validation Losses:
+Boundary Loss: 1.0465e-01, Initial Loss: 1.2458e-02, PDE Loss: 5.3217e-03, Non-trivial Loss: 9.5252e-02
+
+
+Final Validation PDE Loss: 3.8177e-02
 Model saved as pinn_model_128_3_3e-05_1.0_1.0_1.0.pth
-Training time: 36.92 minutes
+Training time: 40.89 minutes

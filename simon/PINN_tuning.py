@@ -365,8 +365,11 @@ def train_model(n_hidden=128, n_layers=3, lr=1e-4,
 
     # Validation points
     n_val_points = 10000
-    _, _, x_val_pde = load_sample_points(f"sample_points_{n_val_points}.npz")
+    x_val_b, x_val_i, x_val_pde = load_sample_points(f"sample_points_{n_val_points}.npz")
+    x_val_b = x_val_b.to(device).requires_grad_()
+    x_val_i = x_val_i.to(device).requires_grad_()
     x_val_pde = x_val_pde.to(device).requires_grad_()
+
 
     # Create DataLoaders
     boundary_loader = DataLoader(TensorDataset(x_b), batch_size=batch_size, shuffle=True)
@@ -396,12 +399,16 @@ def train_model(n_hidden=128, n_layers=3, lr=1e-4,
 
         if verbose and epoch % 100 == 0:
             model.eval()
-            val_loss = loss_physics(model, x_val_pde)
+            val_loss = total_loss(model, x_val_b, x_val_i, x_val_pde, lambda_bc, lambda_ic, lambda_pde)
             print(f"Epoch {epoch:4d} | Training Loss: {epoch_loss:.4e} | Validation PDE Loss: {val_loss.item():.4e}")
+            print("Training Loss of one batch:")
+            print(f"Boundary Loss: {loss_boundary(model, xb_batch).item():.4e}, Initial Loss: {loss_initial(model, xi_batch).item():.4e}, PDE Loss: {loss_physics(model, xpde_batch).item():.4e}")
+            print("Validation Losses:")
+            print(f"Boundary Loss: {loss_boundary(model, x_val_b).item():.4e}, Initial Loss: {loss_initial(model, x_val_i).item():.4e}, PDE Loss: {loss_physics(model, x_val_pde).item():.4e}")
 
     # Final evaluation
     model.eval()
-    final_val_loss = loss_physics(model, x_val_pde)
+    final_val_loss = total_loss(model, x_val_b, x_val_i, x_val_pde, lambda_bc, lambda_ic, lambda_pde)
     print(f"\nFinal Validation PDE Loss: {final_val_loss.item():.4e}")
     # Save the model
     torch.save(model.state_dict(), f"pinn_model_{n_hidden}_{n_layers}_{lr:.0e}_{lambda_bc}_{lambda_ic}_{lambda_pde}.pth")
@@ -433,12 +440,12 @@ def main_training():
     n_hidden = 128
     n_layers = 3
     lr = 3.4200466989175795e-05
-    lambda_bc = 0.1
-    lambda_ic = 0.1
+    lambda_bc = 1.0
+    lambda_ic = 1.0
     lambda_pde = 1.0
 
     # other parameters
-    n_epochs = 1000
+    n_epochs = 500
     n_points = 50000
     batch_size = 2024
     start = time.time()
@@ -446,7 +453,7 @@ def main_training():
                 lambda_bc=lambda_bc, lambda_ic=lambda_ic, lambda_pde=lambda_pde,
                 n_epochs=n_epochs, n_points=n_points, batch_size=batch_size)
     end = time.time()
-    print(f"Training time: {end - start:.2f} seconds")
+    print(f"Training time: {(end - start)/60:.2f} minutes")
 
 if __name__ == "__main__":
     # main_tuning()

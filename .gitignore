@@ -22,4 +22,12 @@ dolfinx-tutorial/
 
 .gitignore
 
-*.png
+.png
+
+main.aux
+main.db_latexmk
+main.fls
+main.log
+main.pdf
+main.synctex.gz
+main.loc

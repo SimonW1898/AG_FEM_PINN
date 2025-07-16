@@ -123,7 +123,7 @@ H_0^1(\Omega; \mathbb{C}) := \left\{ u \in L^2(\Omega; \mathbb{C}) \ \middle| \ 
 \]
 This space is equipped with the inner product
 \[
-\langle u, v \rangle_{H_0^1} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx,
+\langle u, v \rangle_{H_0^1()} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx,
 \]
 and the associated norm
 \[
@@ -145,9 +145,9 @@ We take the complex conjugate of the test function $v$ to ensure that the formul
 \subsection*{Time Integration with the Euler Method}
 The Euler method is a simple and widely used numerical method for solving  differential equations.
 It approximates the time derivative with a first order finite difference scheme. In the following we will use the backward Euler method, which gives an approximation of the time derivative as follows:
-\begin{equation}
+\begin{align*}
     \partial_t u(x,t) \approx \frac{u^{t + \dt} - u^t}{\dt},
-\end{equation}
+\end{align*}
 The backward euler method allows us to solve the Schrödinger equation iteratively in each time step by finite elements method in space.
 The time resolution is controlled by the time step size $\dt$, where $t$ is the current time and $t + \dt$ is the next time step.
 
@@ -157,15 +157,16 @@ This is sufficient for many applications, but for higher accuracy, higher order 
 
 \subsection*{Weak Formulation with Backward Euler Method}
 The time-discrete weak form of the Schrödinger equation becomes:
-\begin{equation}
+\begin{align*}
     i \int_{\Omega} \left( \frac{u^{t + \dt} - u^t}{\dt} \right) \bar{v} \, dx = - \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u^{t+\dt} \bar{v} \, dx
-\end{equation}
+\end{align*}
 By rearranging, the  weak formulation takes the form, with implicit terms on the left and explicit (known) terms on the right:
-\begin{equation}
-    i \int_{\Omega} u^{t + \dt} \bar{v} - \dt \int_{\Omega}  u^{t+\dt} \bar{v} V(x,t)  \, dx + \dt \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} = i \int_{\Omega} u^t \bar{v} \, dx ,
-\end{equation}
-
+\begin{align*}
+    i \int_{\Omega} u^{t + \dt} \bar{v} - \dt \int_{\Omega}  u^{t+\dt} \bar{v} V(x,t)  \, dx + \dt \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} &= i \int_{\Omega} u^t \bar{v} \, dx ,\\
+    a(u^{t + \dt}, v) &= L(v),
+\end{align*}
 which can be solved iteratively for $u^{t + \dt}$ in each time step.
+
 
 % make note in red that i describe u and v dependent of x,t and t+dt is next timestep
 % Note: In the following, we will denote the dependence of $u$ and $v$ on $x$ and $t$ explicitly, while $t + \dt$ refers to the next time step.
@@ -204,25 +205,25 @@ a(u, v) = L(v) \quad \text{for all } v \in H.
 
 
 \subsection*{Application of the Lax-Milgram Theorem to the Discrete Schrödinger Equation}
-To properly ...
-Show that the left-hand side: 
-$$a(u,v) = \frac{i}{\dt} \int_{\Omega} u^{t + \dt} \bar{v} \, dx -  \int_{\Omega} V(x,t) u^{t + \dt} \bar{v} \, dx + \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} \, dx$$ is a sesquilinear form.
-And the right-hand side: $$L(v) = \frac{i}{\dt} \int_{\Omega} u^t \bar{v} \, dx $$ is a bounded linear functional.
-
-\subsection*{Scalar Product in $H_0^1(\Omega; \mathbb{C})$}
-
-We define the scalar product
+In the following, we will show the conditions of the Lax-Milgram theorem are satisfied for the sesquilinear form $a(u, v)$ and the linear functional $L(v)$, such that the existence and uniqueness of the solution to the weak formulation of the Schrödinger equation is guaranteed.\\
+As we have already established, the Sobolev space $H_0^1(\Omega; \mathbb{C})$ is a Hilbert space with the inner product:
 \[
-\langle u, v \rangle_{H_0^1} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx.
+\langle u, v \rangle_{H_0^1(\Omega)} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx.
 \]
-This is a valid sesquilinear inner product because:
-\begin{itemize}
-  \item It is \textbf{linear} in the first argument: $\langle \lambda u_1 + \mu u_2, v \rangle = \lambda \langle u_1, v \rangle + \mu \langle u_2, v \rangle$ for all $\lambda, \mu \in \mathbb{C}$.
-  \item It is \textbf{conjugate-linear} in the second argument.
-  \item It is \textbf{Hermitian}: $\langle u, v \rangle = \overline{\langle v, u \rangle}$.
-  \item It is \textbf{positive-definite}: $\langle u, u \rangle = 0$ implies $u = 0$ in $H_0^1$.
-\end{itemize}
-Hence, $(H_0^1(\Omega; \mathbb{C}), \langle \cdot, \cdot \rangle_{H_0^1})$ is a Hilbert space.
+% \subsection*{Scalar Product in $H_0^1(\Omega; \mathbb{C})$}
+
+% We define the scalar product
+% \[
+% \langle u, v \rangle_{H_0^1} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx.
+% \]
+% This is a valid sesquilinear inner product because:
+% \begin{itemize}
+%   \item It is \textbf{linear} in the first argument: $\langle \lambda u_1 + \mu u_2, v \rangle = \lambda \langle u_1, v \rangle + \mu \langle u_2, v \rangle$ for all $\lambda, \mu \in \mathbb{C}$.
+%   \item It is \textbf{conjugate-linear} in the second argument.
+%   \item It is \textbf{Hermitian}: $\langle u, v \rangle = \overline{\langle v, u \rangle}$.
+%   \item It is \textbf{positive-definite}: $\langle u, u \rangle = 0$ implies $u = 0$ in $H_0^1$.
+% \end{itemize}
+% Hence, $(H_0^1(\Omega; \mathbb{C}), \langle \cdot, \cdot \rangle_{H_0^1})$ is a Hilbert space.
 
 \subsubsection*{Boundedness of the Sesquilinear and Linear Form.}
 
@@ -236,7 +237,7 @@ Let $u, v \in H_0^1(\Omega; \mathbb{C})$, $V \in L^\infty(\Omega)$ and $\tau > 0
 \begin{proof}
 By triangle inequality, we can split the sesquilinear form into three terms:
 \[
-|a(u, v)| \leq |\int_\Omega \nabla u \cdot \nabla \overline{v} \, dx| + \left| \frac{i}{\dt} \int_\Omega u \, \overline{v} \, dx \right| + \left| \int_\Omega V(x,t) u^{t + \dt} \bar{v} \, dx \right|.
+|a(u, v)| \leq \left|\int_\Omega \nabla u \cdot \nabla \overline{v} \, dx \right| + \left| \frac{i}{\dt} \int_\Omega u \, \overline{v} \, dx \right| + \left| \int_\Omega V(x,t) u^{t + \dt} \bar{v} \, dx \right|.
 \]
 We estimate each term separately.
 
@@ -258,30 +259,27 @@ We estimate each term separately.
 
 \textbf{(3) Potential term:}
 \begin{align*}
-\left| \int_\Omega V(x,t) u^{t + \dt} \bar{v} \, dx \right| &\leq \|V\|_{L^\infty(\Omega \times [0,T])} \int_\Omega |u^{t + \dt}| |\bar{v}| \, dx \\
-&\leq \|V\|_{L^\infty(\Omega \times [0,T])} \|u^{t + \dt}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
+\left| \int_\Omega V(x,t) u^{t + \dt} \bar{v} \, dx \right| &\leq \|V\|_{L^\infty(\Omega )} \int_\Omega |u^{t + \dt}| |\bar{v}| \, dx \\
+&\leq \|V\|_{L^\infty(\Omega)} \|u^{t + \dt}\|_{L^2(\Omega)} \|v\|_{L^2(\Omega)}.
 \end{align*}
 
 \textbf{Combining all terms:}
 \begin{align*}
 |a(u, v)| &\leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2} + \frac{1}{\dt} \|u\|_{L^2} \|v\|_{L^2} + \|V\|_{L^\infty} \|u^{t + \dt}\|_{L^2} \|v\|_{L^2}\\
-& \leq M \left( \|\nabla u\|_{L^2} \|\nabla v\|_{L^2} + \|u\|_{L^2} \|v\|_{L^2} \right),
+& \leq M \left( \|\nabla u\|_{L^2} \|\nabla v\|_{L^2} + \|u\|_{L^2} \|v\|_{L^2} \right),\\
+&\leq M \|u\|_{H_0^1} \|v\|_{H_0^1}, \quad \text{(by Cauchy-Schwarz)}
 \end{align*}
 where \( M = \max\left(1, \frac{1}{\dt} + \|V\|_{L^\infty}\right) \).
-
+% The last step is valid because:
+% \begin{align*}
+%   ab+cd &\leq \sqrt{a^2 + c^2} \sqrt{b^2 + d^2} = \|(a,c)\| \|(b,d)\| \quad \text{(by Cauchy-Schwarz)},
+% \end{align*}
+% where $a = \|\nabla u\|_{L^2}$, $b = \|u\|_{L^2}$, $c = \|\nabla v\|_{L^2}$, and $d = \|v\|_{L^2}$.
 % \[
 % |a(u, v)| \leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2}
 % + \frac{1}{\dt} \|u\|_{L^2} \|v\|_{L^2}.
 % \]
 
-Recalling the definition of the \(H_0^1\) norm:
-\[
-\|u\|_{H_0^1}^2 := \|\nabla u\|_{L^2}^2 + \|u\|_{L^2}^2.
-\]
-We obtain the desired estimate:
-$$|a(u, v)| \leq M \|u\|_{H_0^1} \|v\|_{H_0^1},$$
-
-where \( M = \max\left(1, \frac{1}{\dt} + \|V\|_{L^\infty}\right) \).
 \end{proof}
 % \[
 % |a(u, v)| \leq \|\nabla u\|_{L^2} \|\nabla v\|_{L^2}
@@ -377,7 +375,7 @@ where \( C = \frac{1}{2\dt}\|u^{t}\|_{L^2(\Omega)} \).
 Hence, \( L \) is bounded.
 \end{proof}
 
-\subsection*{Coercivity of the Sesquilinear Form}
+\subsubsection*{Coercivity of the Sesquilinear Form}
 
 \begin{lemma}
 [Coercivity of the sesquilinear form]
@@ -397,10 +395,10 @@ Note: check again for minus signs looks weird
 \Re a(u, u)
 &= \Re \left( \int_\Omega |\nabla u|^2 \, dx + \frac{i}{\dt}\int_\Omega   |u|^2 \, dx - \int_\Omega V(x,t) u \, \overline{u} \, dx \right) \\
 &=  \int_\Omega |\nabla u|^2 \, dx - \int_\Omega V(x,t) |u|^2 \, dx \\
-&= ||\nabla u||_{L^2(\Omega)}^2 - ||V||_{L^\infty(\Omega \times [0,T])}^2 ||u||_{L^2(\Omega)}^2.
+&= ||\nabla u||_{L^2(\Omega)}^2 - ||V||_{L^\infty(\Omega)}^2 ||u||_{L^2(\Omega)}^2.
 \end{align*}
 By the boundedness of the potential term, we have:
-\[ \|V\|_{L^\infty(\Omega \times [0,T])} = C_V < \infty\]
+\[ \|V\|_{L^\infty(\Omega)} = C_V < \infty\]
 By the Poincaré inequality, we have:
 \[
 \|u\|_{L^2(\Omega)}^2 \leq C_P ||\nabla u||_{L^2(\Omega)}^2 \quad \text{(for some constant } C_P > 0\text{)}.
@@ -440,57 +438,81 @@ We showed that every condition of the Lax-Milgram theorem is satisfied, thus a s
 
 \section{Physics-Informed Neural Networks}
 
-Copilot:
 Physical Informed Neural Networks (PINNs) can be used to solve the Schrödinger equation by incorporating the physics of the problem into the training process. The neural network is trained to minimize a loss function that includes terms for the residual of the Schrödinger equation, initial conditions, and boundary conditions.
 
 \subsection*{Classical PINN Loss for the Schrödinger Equation}
 
-Let $u_\theta : \Omega \times [0,T] \to \mathbb{C}$ be a neural network approximation to the solution of the time-dependent Schrödinger equation
+Let $u_\theta : \Omega \times [0,T] \to \R^2$ be a neural network approximation to the solution of the time-dependent Schrödinger equation
 \[
 i \, \partial_t u = -\Delta u + V(x,t) u.
 \]
+The output of the neural network is a two dimensional real vector, representing the real and imaginary parts of the wave function \( u \).
+To train the neural network, we define a loss functional that combines the residual of the Schrödinger equation, initial conditions, boundary conditions and a normalization term.
+\paragraph{Residual Loss}
+The residual function origins directly from the Schrödinger equation and measures how well the neural network satisfies the PDE at given collocation points in space and time.
 We define the residual function
 \[
 \mathcal{R}(x,t) := i \, \partial_t u_\theta(x,t) + \Delta u_\theta(x,t) - V(x,t) u_\theta(x,t).
 \]
-The classical PINN loss functional is then given by
+If the Residual function is zero, the neural network satisfies the Schrödinger equation at the collocation point $(x,t)$.
+And therefore the residual functional is defined as
+\[
+\mathcal{L}_{\mathrm{PDE}}(\theta) = \frac{1}{N_R} \sum_{j=1}^{N_R} \left| \mathcal{R}(x_j, t_j) \right|^2,\]
+where \( N_R \) is the number of collocation points, and \( (x_j, t_j) \in \Omega \times (0,T] \).
+
+\paragraph{Initial Condition Loss}
+To enforce the initial condition \( u(x,0) = u_0(x) \), we define the initial condition loss as
+\[\mathcal{L}_{\mathrm{IC}}(\theta) = \frac{1}{N_0} \sum_{j=1}^{N_0} \left| u_\theta(x_j, 0) - u_0(x_j) \right|^2,\]
+where \( u_0(x) \) is the given initial condition and \( (x_j, 0) \in \Omega \times \{0\} \) and \( N_0 \) is the number of collocation points.
+
+\paragraph{Boundary Condition Loss}
+The boundary condition is enforced by minimizing:
+\[\mathcal{L}_{\mathrm{BC}}(\theta) = \frac{1}{N_B} \sum_{j=1}^{N_B} \left| u_\theta(x_j, t_j) - 0 \right|^2,\]
+where \( (x_j, t_j) \in \partial \Omega \times (0,T] \) and \( N_B \) is the number of collocation points on the boundary.
+
+\paragraph{Normalization Loss}
+To ensure the neural network does not converge to the trivial solution \( u(x,t) = 0 \), we can add a normalization term to the loss function. 
+This term can be defined as:
+\[\mathcal{L}_{\mathrm{norm}}(\theta) = \frac{1}{N_N} \left(C - \sum_{j=1}^{N_N} \left|  u_\theta(x_j, t_j) \right|^2\right),\]
+where \( (x_j, t_j) \in \Omega \times (0,T] \) and \( N_N \) is the number of collocation points.
+This describes the difference of the $L^2$ norm of the neural network output to a constant value $C$.
+
+\paragraph{Total Loss Functional}
+The total loss functional combines all the individual losses with weighting parameters:
 \begin{align*}
 \mathcal{L}_{\mathrm{PINN}}(\theta) =
-\lambda_{\mathrm{PDE}} \cdot \frac{1}{N_f} \sum_{j=1}^{N_f} \left| \mathcal{R}(x_j, t_j) \right|^2
-+& \lambda_{\mathrm{IC}} \cdot \frac{1}{N_0} \sum_{j=1}^{N_0} \left| u_\theta(x_j, 0) - u_0(x_j) \right|^2\\
-+& \lambda_{\mathrm{BC}} \cdot \frac{1}{N_b} \sum_{j=1}^{N_b} \left| u_\theta(x_j, t_j) \right|^2,    
+\lambda_{\mathrm{PDE}} \cdot \mathcal{L}_{\mathrm{PDE}}(\theta) +
+\lambda_{\mathrm{IC}} \cdot \mathcal{L}_{\mathrm{IC}}(\theta) +
+\lambda_{\mathrm{BC}} \cdot \mathcal{L}_{\mathrm{BC}}(\theta) +
+\lambda_{\mathrm{norm}} \cdot \mathcal{L}_{\mathrm{norm}}(\theta).
 \end{align*}
+Minimizing this loss functional with respect to the neural network parameters \( \theta \) will yield a solution that approximates the Schrödinger equation while satisfying the initial and boundary conditions.
 
-where:
-\begin{itemize}
-  \item $(x_j, t_j)$ are collocation points in $\Omega \times (0,T]$,
-  \item $u_0(x)$ is the given initial condition,
-  \item and $\lambda_{\mathrm{PDE}}, \lambda_{\mathrm{IC}}, \lambda_{\mathrm{BC}}$ are weighting parameters for PDE residual, initial condition, and boundary condition losses, respectively.
-\end{itemize}
+\subsection*{Implementation of the Residual Loss glaub lass ich doch lieber raus}
 
-\subsection*{Energy-Based PINN Loss via Weak Formulation}
+% \subsection*{Energy-Based PINN Loss via Weak Formulation}
 
-We consider a time discretization with step size $\Delta t$ and define the semi-discrete Schrödinger equation via the backward Euler method:
-\[
-i \frac{u^t - u^{t-1}}{\Delta t} = -\Delta u^t + V(x,t) u^t.
-\]
-We define the bilinear form $a : H_0^1(\Omega; \mathbb{C}) \times H_0^1(\Omega; \mathbb{C}) \to \mathbb{C}$ and linear form $L^t : H_0^1(\Omega; \mathbb{C}) \to \mathbb{C}$ by
-\begin{align*}
-a(u, v) &:= \int_\Omega \left( \frac{i}{\Delta t} u \bar{v} + \nabla u \cdot \nabla \bar{v} + V(x,t) u \bar{v} \right) \, dx, \\
-L^t(v) &:= \int_\Omega \frac{i}{\Delta t} u^{t-1}(x) \bar{v}(x) \, dx.
-\end{align*}
-The energy-based loss at timestep $t$ is defined by
-\[
-\mathcal{L}_{\text{energy}}^t(\theta) := \left| a(u_\theta^t, v) - L^t(v) \right|^2,
-\]
-where $v \in H_0^1(\Omega; \mathbb{C})$ is a test function (e.g., $v = u_\theta^t$), or the quantity can be integrated over a set of test functions or points.
+% We consider a time discretization with step size $\Delta t$ and define the semi-discrete Schrödinger equation via the backward Euler method:
+% \[
+% i \frac{u^t - u^{t-1}}{\Delta t} = -\Delta u^t + V(x,t) u^t.
+% \]
+% We define the bilinear form $a : H_0^1(\Omega; \mathbb{C}) \times H_0^1(\Omega; \mathbb{C}) \to \mathbb{C}$ and linear form $L^t : H_0^1(\Omega; \mathbb{C}) \to \mathbb{C}$ by
+% \begin{align*}
+% a(u, v) &:= \int_\Omega \left( \frac{i}{\Delta t} u \bar{v} + \nabla u \cdot \nabla \bar{v} + V(x,t) u \bar{v} \right) \, dx, \\
+% L^t(v) &:= \int_\Omega \frac{i}{\Delta t} u^{t-1}(x) \bar{v}(x) \, dx.
+% \end{align*}
+% The energy-based loss at timestep $t$ is defined by
+% \[
+% \mathcal{L}_{\text{energy}}^t(\theta) := \left| a(u_\theta^t, v) - L^t(v) \right|^2,
+% \]
+% where $v \in H_0^1(\Omega; \mathbb{C})$ is a test function (e.g., $v = u_\theta^t$), or the quantity can be integrated over a set of test functions or points.
 
-The full loss over all timesteps is then
-\[
-\mathcal{L}_{\text{energy}}(\theta) := \frac{1}{N_t} \sum_{t=1}^{N_t} \mathcal{L}_{\text{energy}}^t(\theta)
-+ \lambda_{\mathrm{IC}} \cdot \frac{1}{N_0} \sum_{j=1}^{N_0} \left| u_\theta(x_j, 0) - u_0(x_j) \right|^2
-+ \lambda_{\mathrm{BC}} \cdot \frac{1}{N_b} \sum_{j=1}^{N_b} \left| u_\theta(x_j, t_j) \right|^2.
-\]
+% The full loss over all timesteps is then
+% \[
+% \mathcal{L}_{\text{energy}}(\theta) := \frac{1}{N_t} \sum_{t=1}^{N_t} \mathcal{L}_{\text{energy}}^t(\theta)
+% + \lambda_{\mathrm{IC}} \cdot \frac{1}{N_0} \sum_{j=1}^{N_0} \left| u_\theta(x_j, 0) - u_0(x_j) \right|^2
+% + \lambda_{\mathrm{BC}} \cdot \frac{1}{N_b} \sum_{j=1}^{N_b} \left| u_\theta(x_j, t_j) \right|^2.
+% \]
 
 \section{Experiments and Discussion}
 

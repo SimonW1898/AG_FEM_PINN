@@ -492,7 +492,9 @@ The full loss over all timesteps is then
 + \lambda_{\mathrm{BC}} \cdot \frac{1}{N_b} \sum_{j=1}^{N_b} \left| u_\theta(x_j, t_j) \right|^2.
 \]
 
-\section{Experiments}
+\section{Experiments and Discussion}
+
+To compare the performance of the FEM and PINNs, we consider the following two problems:
 
 \subsection*{Problem 1: Free Schrödinger Equation on the Unit Square}
 
@@ -502,8 +504,6 @@ i \, \partial_t u(x,t) &= -\Delta u(x,t), &&\text{in } \Omega \times (0,T), \\
 u(x,t) &= 0, &&\text{on } \partial \Omega \times (0,T), \\
 u(x,0) &= u_0(x), &&\text{in } \Omega.
 \end{align*}
-
-\subsubsection*{Analytical Solution}
 
 A known exact solution is given by the separable function
 \[
@@ -524,88 +524,14 @@ which satisfies:
   \]
 \end{itemize}
 
-\begin{figure}[h]
+The analytical solution at time $t = 0$ is shown in Figure \ref{fig:initial_state}. Note that in the following, we will always show the square of the absolute value of the solution, as this is the physically relevant quantity.
+
+\begin{figure}[h!]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/initial_state_3d.png}
   \caption{Initial State}
   \label{fig:initial_state}
 \end{figure}
-
-
-\begin{figure}[h]
-  \centering
-  \begin{subfigure}[b]{0.3\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/fem_frame_0000.png}
-    \label{fig:sol_t0}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.3\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/fem_frame_0020.png}
-    \label{fig:sol_t1}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.3\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/fem_frame_0040.png}
-    \label{fig:sol_t2}
-  \end{subfigure}
-  
-  \vspace{0.5cm}
-  
-  \begin{subfigure}[b]{0.3\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/fem_frame_0060.png}
-    \label{fig:sol_t3}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.3\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/fem_frame_0080.png}
-    \label{fig:sol_t4}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.3\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/fem_frame_0100.png}
-    \label{fig:sol_t5}
-  \end{subfigure}
-  \caption{Evolution of the solution at different times}
-  \label{fig:solution_evolution}
-\end{figure}
-
-
-
-\subsubsection*{Summary of Parameters}
-
-\begin{itemize}
-  \item Domain: $\Omega = (0,1)^2$
-  \item Boundary conditions: $u = 0$ on $\partial \Omega$
-  \item Initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$
-  \item Potential: $V(x,t) = 0$
-  \item Exact solution: $u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}$
-\end{itemize}
-
-\subsection*{Problem 2: Schrödinger Equation with Time-Dependent Model Potential}
-
-\subsubsection*{The Model Potential}
-
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=0.7\textwidth,trim=2cm 2cm 2cm 2cm,clip]{figures/Figure3.pdf}
-  \caption{Laser Pulse}
-  \label{fig:laser_pulse}
-\end{figure}
-
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=0.7\textwidth]{figures/potential_initial_state_3d.png}
-  \caption{Initial State with Potential}
-  \label{fig:initial_state_with_potential}
-\end{figure}
-
-\subsubsection*{Time-Discrete Weak Formulation (Backward Euler)}
 
 We discretize the time interval $[0,T]$ with step size $\Delta t > 0$ and denote $u^n \approx u(t_n)$ at time $t_n = n\Delta t$.
 
@@ -624,47 +550,140 @@ i \int_{\Omega}  u^n \, \overline{v} \, dx
 \end{align*}
 This is the variational equation to be solved at each time step $t_n$.
 
+We summarize the parameters of the problem as follows:
+
+\begin{itemize}
+  \item Domain: $\Omega = (0,1)^2$
+  \item Time interval: $[0,T] = [0,1]$
+  \item Time step size: $\Delta t = 0.01$
+  \item Boundary conditions: $u = 0$ on $\partial \Omega$
+  \item Initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$
+  \item Potential: $V(x,t) = 0$
+  \item Exact solution: $u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}$
+\end{itemize}
+
+\subsubsection*{FEM Solution}
+
+We solve the problem with the FEM and show the evolution of the solution at different times in Figure \ref{fig:free_solution_evolution}.
+
+
 \begin{figure}[h]
   \centering
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/fem_potential_frame_0000.png}
-    \label{fig:sol_t0}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_frame_0000.png}
+    \caption{t = 0.0}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/fem_potential_frame_0020.png}
-    \label{fig:sol_t1}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_frame_0020.png}
+    \caption{t = 0.2}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/fem_potential_frame_0040.png}
-    \label{fig:sol_t2}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_frame_0040.png}
+    \caption{t = 0.4}
   \end{subfigure}
   
   \vspace{0.5cm}
   
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/fem_potential_frame_0060.png}
-    \label{fig:sol_t3}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_frame_0060.png}
+    \caption{t = 0.6}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/fem_potential_frame_0080.png}
-    \label{fig:sol_t4}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_frame_0080.png}
+    \caption{t = 0.8}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/fem_potential_frame_0100.png}
-    \label{fig:sol_t5}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_frame_0100.png}
+    \caption{t = 1.0}
   \end{subfigure}
-  \caption{Evolution of the solution at different times}
-  \label{fig:solution_evolution}
+  \caption{Time evolution of the solution of the free Schrödinger equation, obtained with the FEM.}
+  \label{fig:free_solution_evolution}
+\end{figure}
+
+We can see that the solution is a standing wave, which is expected for the free Schrödinger equation.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\textwidth, trim=0cm 0cm 18.1cm 0cm, clip]{figures/2d_error_analysis.png}
+  \caption{2D Error Analysis}
+  \label{fig:2d_error_analysis}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\textwidth, trim=19cm 0cm 0cm 0cm, clip]{figures/2d_error_analysis.png}
+  \caption{2D Error Analysis}
+  \label{fig:2d_error_analysis_2}
+\end{figure}
+
+\subsubsection*{PINN Solution}
+
+We solve the problem with the PINN and show the evolution of the solution at different times in Figure \ref{fig:free_solution_evolution_pinn}.
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/pinn_frame_0000.png}
+    \caption{t = 0.0}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/pinn_frame_0010.png}
+    \caption{t = 0.2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/pinn_frame_0020.png}
+    \caption{t = 0.4}
+  \end{subfigure}
+  
+  \vspace{0.5cm}
+  
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/pinn_frame_0030.png}
+    \caption{t = 0.6}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/pinn_frame_0040.png}
+    \caption{t = 0.8}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/pinn_frame_0050.png}
+    \caption{t = 1.0}
+  \end{subfigure}
+  \caption{Time evolution of the solution of the free Schrödinger equation, obtained with the PINN.}
+  \label{fig:free_solution_evolution_pinn}
+\end{figure}
+
+\subsubsection*{Comparison of FEM and PINN}
+
+\subsection*{Problem 2: Schrödinger Equation with Time-Dependent Model Potential}
+
+\subsubsection*{The Model Potential}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.7\textwidth,trim=2cm 2cm 2cm 2cm,clip]{figures/Figure3.pdf}
+  \caption{Laser Pulse}
+  \label{fig:laser_pulse}
 \end{figure}
 
 
@@ -673,44 +692,102 @@ This is the variational equation to be solved at each time step $t_n$.
   \centering
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/pinn_frame_0000.png}
-    \label{fig:sol_t0}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/potential_frame_0000.png}
+    \caption{t = 0.0}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/pinn_frame_0010.png}
-    \label{fig:sol_t1}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/potential_frame_0010.png}
+    \caption{t = 0.2}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/pinn_frame_0020.png}
-    \label{fig:sol_t2}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/potential_frame_0020.png}
+    \caption{t = 0.4}
   \end{subfigure}
   
   \vspace{0.5cm}
   
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/pinn_frame_0030.png}
-    \label{fig:sol_t3}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/potential_frame_0030.png}
+    \caption{t = 0.6}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/pinn_frame_0040.png}
-    \label{fig:sol_t4}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/potential_frame_0040.png}
+    \caption{t = 0.8}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/pinn_frame_0050.png}
-    \label{fig:sol_t5}
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/potential_frame_0050.png}
+    \caption{t = 1.0}
   \end{subfigure}
-  \caption{Evolution of the solution at different times}
-  \label{fig:solution_evolution}
+  \caption{Time evolution of the solution of the Schrödinger equation with the time-dependent model potential, obtained with the PINN.}
+  \label{fig:potential_evolution}
 \end{figure}
+
+
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.7\textwidth]{figures/potential_initial_state_3d.png}
+  \caption{Initial State with Potential}
+  \label{fig:initial_state_with_potential}
+\end{figure}
+
+
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_potential_frame_0000.png}
+    \caption{t = 0.0}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_potential_frame_0020.png}
+    \caption{t = 0.2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_potential_frame_0040.png}
+    \caption{t = 0.4}
+  \end{subfigure}
+  
+  \vspace{0.5cm}
+  
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_potential_frame_0060.png}
+    \caption{t = 0.6}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_potential_frame_0080.png}
+    \caption{t = 0.8}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.3\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, trim=0cm 0cm 0cm 1cm, clip]{figures/fem_potential_frame_0100.png}
+    \caption{t = 1.0}
+  \end{subfigure}
+  \caption{Time evolution of the solution of the Schrödinger equation with the time-dependent model potential, obtained with the FEM.}
+  \label{fig:potential_evolution_fem}
+\end{figure}
+
+
+
 
 \section{Discussion and Outlook}
 

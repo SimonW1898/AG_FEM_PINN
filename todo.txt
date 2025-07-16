@@ -1,22 +1,22 @@
 4.1 
-analytical solution absolute value, say way only absolute value 3D
+analytical solution absolute value, say way only absolute value 3D                  Done
 FEM:
-fem solution at three different time steps t = 0, t = 0.5, t = 1.0 3D
-2d plot, error vs time for different grid resolutions
+fem solution at three different time steps t = 0, t = 0.5, t = 1.0 3D               Done
+2d plot, error vs time for different grid resolutions                               
 2d plot, error vs grid resolution for different time steps
-2d plot, error vs time for different time resolutions
+2d plot, error vs time for different time resolutions                               
 PINNs:
-pinn solution at three different time steps t = 0, t = 0.5, t = 1.0 3D
+pinn solution at three different time steps t = 0, t = 0.5, t = 1.0 3D              Done
 2d plot, error vs time, maybe real and imaginary part seperately
 pde loss over time
 
 4.2 
-plot potential in 3d for different times t = 0 and for one period
-plot initial condition as solution of the time-independent model potential in 3d
+plot potential in 3d for different times t = 0 and for one period                   Done
+plot initial condition as solution of the time-independent model potential in 3d    Done
 FEM:
-fem solution at ten different time steps
+fem solution at ten different time steps                                            Done
 PINNs:
-pinn solution at ten different time steps
+pinn solution at ten different time steps                                           Done
 
 
 

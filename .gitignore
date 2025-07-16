@@ -10,15 +10,15 @@ wheels/
 .venv/lib/
 
 # Dev container files
-.devcontainer/
-*.json
+# .devcontainer/
+# *.json
 
 # Dolfinx Tutorial
 dolfinx-tutorial/
 
 
 # PyTorch model files
-*.pt
+# *.pt
 
 .gitignore
 

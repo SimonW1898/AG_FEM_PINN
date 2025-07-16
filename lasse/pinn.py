@@ -2,43 +2,30 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
-
 import itertools
-import time
 
 import numpy as np
 import matplotlib.pyplot as plt
-import optuna
+import time
 
+# optuna check out for hyperparameter optimization
+
+# PINN model definition
 class PINN(nn.Module):
-    def __init__(self, n_hidden=64, n_layers=3, activation='tanh'):
-        """
-        Initialize the Physics-Informed Neural Network (PINN) model.
-
-        Args:
-            n_hidden (int): Number of hidden units in each hidden layer.
-            n_layers (int): Number of hidden layers.
-            activation (str): Activation function to use ('tanh', 'relu', 'sigmoid', 'gelu').
-        """
-        super().__init__()
-        self.activation = {
-            'tanh': nn.Tanh(),
-            'relu': nn.ReLU(),
-            'sigmoid': nn.Sigmoid(),
-            'gelu': nn.GELU()
-        }[activation]
-
-        layers = [nn.Linear(3, n_hidden)]
-        for _ in range(n_layers - 1):
-            layers.append(nn.Linear(n_hidden, n_hidden))
-        self.hidden_layers = nn.ModuleList(layers)
-        self.output_layer = nn.Linear(n_hidden, 2)
+    def __init__(self, n_hidden = 64, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.linear1 = nn.Linear(3, n_hidden)
+        self.linear2 = nn.Linear(n_hidden, n_hidden)
+        self.linear3 = nn.Linear(n_hidden, n_hidden)
+        self.linear4 = nn.Linear(n_hidden, 2)
+        self.activation = nn.Tanh()
 
     def forward(self, x):
-        for layer in self.hidden_layers:
-            x = self.activation(layer(x))
-        return self.output_layer(x)
-    
+        x = self.activation(self.linear1(x))
+        x = self.activation(self.linear2(x))
+        x = self.activation(self.linear3(x))
+        output = self.linear4(x)
+        return output
 
 # Derivative utilities
 def get_gradients(model, x):
@@ -123,7 +110,6 @@ def potential_function(x):
     """
     x1 = x[:, 0]
     x2 = x[:, 1]
-
     t = x[:, 2]
     return 0.0 * (x1**2 + x2**2) * (1 + t) # set to zero for now, can be modified later
 
@@ -132,12 +118,12 @@ def loss_boundary(model, x_b):
     loss = torch.mean(u_b[:, 0]**2 + u_b[:, 1]**2)
     return loss
 
-def loss_initial(model, x_initial):
-    u_initial = model(x_initial)
-    initial_r = torch.sin(np.pi * x_initial[:, 0]) * torch.sin(np.pi * x_initial[:, 1])
+def loss_initial(model, x_i):
+    u_i = model(x_i)
+    initial_r = torch.sin(np.pi * x_i[:, 0]) * torch.sin(np.pi * x_i[:, 1])
     initial_i = torch.zeros_like(initial_r)
-    res_r = u_initial[:, 0] - initial_r
-    res_i = u_initial[:, 1] - initial_i
+    res_r = u_i[:, 0] - initial_r
+    res_i = u_i[:, 1] - initial_i
     loss = torch.mean(res_r**2 + res_i**2)
     return loss
 
@@ -228,7 +214,7 @@ def plot_loss_history(loss_history, epoch_history, window=500):
     plt.close()
 
 
-def make_sample_points_file_name(n_points,T = 1):
+def make_sample_points_file_name(n_points):
     N_points_interior = int(n_points)
     N_points_initial = int(n_points/5)
     N_points_boundary = int(n_points/5)
@@ -250,77 +236,81 @@ def load_sample_points(file_path):
 
 
 
-def objective(trial):
+
+if __name__ == "__main__":
+    start = time.time()
+    # check cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
-    # Hyperparameters
-    # n_hidden []
-    n_hidden = trial.suggest_categorical('n_hidden', [64, 128, 256, 512])
-    n_layers = trial.suggest_int('n_layers', 2, 5)
-    lr = trial.suggest_float('lr', 1e-5, 1e-3, log=True)
 
-    # Regularization parameters
-    lambda_min = 1e-1
-    lambda_max = 1.0
 
-    lambda_bc = trial.suggest_categorical('lambda_bc', [lambda_min, lambda_max])
-    lambda_ic = trial.suggest_categorical('lambda_ic', [lambda_min, lambda_max])
-    lambda_pde = trial.suggest_categorical('lambda_pde', [lambda_min, lambda_max])
-
-    # Create model
-    activation = 'tanh'
-    model = PINN(n_hidden=n_hidden, n_layers=n_layers, activation=activation)
-    model.to(device)
-
-    # Define optimizer
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-
-    # Define parameters
-    n_epochs = 500
-    n_points = 50000
+    # Sampling functions
     T = 1
 
+    # Training
+    n_hidden = 64
+    model = PINN(n_hidden=n_hidden)
+    # shift model on device
+    model.to(device)
 
-    # load sample points
-    x_b, x_i, x_pde = load_sample_points(f"sample_points_{n_points}.npz")   
-    x_b = x_b.to(device).requires_grad_()
-    x_i = x_i.to(device).requires_grad_()
-    x_pde = x_pde.to(device).requires_grad_()
+    n_points = int(10000)
+    print("Creating sample points...")
+    # make sample points file name
+    make_sample_points_file_name(n_points)
+    # Load sample points
+    x_b, x_i, x_pde = load_sample_points(f"sample_points_{n_points}.npz")
+    print("Sample points loaded.")
+    
 
-    # get validation points for pde loss
-    n_val_points = 10000
-    _,_, x_val_pde = load_sample_points(f"sample_points_{n_val_points}.npz")
-    x_val_pde = x_val_pde.to(device).requires_grad_()
+    # Move training data to device
+    x_b = x_b.to(device)
+    x_i = x_i.to(device)
+    x_pde = x_pde.to(device)
+    
+    
 
-    # make DataLoaders
+
+    optimizer = optim.Adam(
+        params=model.parameters(),
+        lr=0.0005,
+        betas=(0.9, 0.999),
+        eps=1e-08,
+        weight_decay=0,
+        amsgrad=False
+    )
+
+
+    epochs = 2000
+    patience = 10000
+    best_loss = float('inf')
+    training_state = 0
+    loss_history = []
+    epoch_history = []
+    # Create TensorDatasets
     batch_size = 1024  # You can adjust this
     boundary_dataset = TensorDataset(x_b)
     initial_dataset = TensorDataset(x_i)
     pde_dataset = TensorDataset(x_pde)
+
     # Create DataLoaders
     boundary_loader = DataLoader(boundary_dataset, batch_size=batch_size, shuffle=True)
     initial_loader = DataLoader(initial_dataset, batch_size=batch_size, shuffle=True)
     pde_loader = DataLoader(pde_dataset, batch_size=batch_size, shuffle=True)
 
-    # handle different number of batches
-    batch_counter = 0
     num_batches = max(len(boundary_loader), len(initial_loader), len(pde_loader))
 
-    # initialize for convergence eval
-    # loss_history = []
-    # epoch_history = []
     # Training loop
-    for epoch in range(n_epochs):
+    for epoch in range(epochs):
         model.train()
         epoch_loss = 0.0
         batch_counter = 0
-        for (xb_batch,), (xi_batch,), (xpde_batch,) in zip(
-            itertools.cycle(boundary_loader),
-            itertools.cycle(initial_loader),
-            pde_loader
-        ):
+        for (xb_batch,), (xi_batch,), (xpde_batch,) in zip( \
+                                                        itertools.cycle(boundary_loader), \
+                                                        itertools.cycle(initial_loader),\
+                                                        pde_loader):
             optimizer.zero_grad()
-            loss = total_loss(model, xb_batch, xi_batch, xpde_batch, lambda_bc, lambda_ic, lambda_pde)
+            loss = total_loss(model, xb_batch, xi_batch, xpde_batch)
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
@@ -328,126 +318,45 @@ def objective(trial):
             if batch_counter >= num_batches:
                 break
         epoch_loss /= batch_counter
-
-        # compute validation
-        if epoch % 20 == 0:
-            model.eval()
-            val_loss = loss_physics(model, x_val_pde)
-            trial.report(val_loss.item(), step = epoch)
-            # check if trial should be pruned
-            if trial.should_prune():
-                raise optuna.exceptions.TrialPruned()
-            
-    model.eval()
-    val_loss = loss_physics(model, x_val_pde)
-
-    return val_loss.item()
-
-def train_model(n_hidden=128, n_layers=3, lr=1e-4,
-                lambda_bc=1.0, lambda_ic=1.0, lambda_pde=1.0,
-                n_epochs=500, n_points=50000, batch_size=2024,
-                activation='tanh', verbose=True):
-    
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # Create model
-    model = PINN(n_hidden=n_hidden, n_layers=n_layers, activation=activation)
-    model.to(device)
-
-    # Define optimizer
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-
-    # Load sample points
-    x_b, x_i, x_pde = load_sample_points(f"sample_points_{n_points}.npz")   
-    x_b = x_b.to(device).requires_grad_()
-    x_i = x_i.to(device).requires_grad_()
-    x_pde = x_pde.to(device).requires_grad_()
-
-    # Validation points
-    n_val_points = 10000
-    _, _, x_val_pde = load_sample_points(f"sample_points_{n_val_points}.npz")
-    x_val_pde = x_val_pde.to(device).requires_grad_()
-
-    # Create DataLoaders
-    boundary_loader = DataLoader(TensorDataset(x_b), batch_size=batch_size, shuffle=True)
-    initial_loader = DataLoader(TensorDataset(x_i), batch_size=batch_size, shuffle=True)
-    pde_loader = DataLoader(TensorDataset(x_pde), batch_size=batch_size, shuffle=True)
-
-    # Training loop
-    num_batches = max(len(boundary_loader), len(initial_loader), len(pde_loader))
-    for epoch in range(n_epochs):
-        model.train()
-        epoch_loss = 0.0
-        batch_counter = 0
-        for (xb_batch,), (xi_batch,), (xpde_batch,) in zip(
-            itertools.cycle(boundary_loader),
-            itertools.cycle(initial_loader),
-            pde_loader
-        ):
-            optimizer.zero_grad()
-            loss = total_loss(model, xb_batch, xi_batch, xpde_batch, lambda_bc, lambda_ic, lambda_pde)
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
-            batch_counter += 1
-            if batch_counter >= num_batches:
-                break
-        epoch_loss /= batch_counter
-
-        if verbose and epoch % 100 == 0:
-            model.eval()
-            val_loss = loss_physics(model, x_val_pde)
-            print(f"Epoch {epoch:4d} | Training Loss: {epoch_loss:.4e} | Validation PDE Loss: {val_loss.item():.4e}")
-
-    # Final evaluation
-    model.eval()
-    final_val_loss = loss_physics(model, x_val_pde)
-    print(f"\nFinal Validation PDE Loss: {final_val_loss.item():.4e}")
-    # Save the model
-    torch.save(model.state_dict(), f"pinn_model_{n_hidden}_{n_layers}_{lr:.0e}_{lambda_bc}_{lambda_ic}_{lambda_pde}.pth")
-    print(f"Model saved as pinn_model_{n_hidden}_{n_layers}_{lr:.0e}_{lambda_bc}_{lambda_ic}_{lambda_pde}.pth") 
+        print(f"Epoch {epoch}, Loss: {epoch_loss:.4f}")
+        loss_history.append(epoch_loss)
+        epoch_history.append(epoch)
+        if epoch_loss < best_loss:
+            best_loss = epoch_loss
+            counter = 0
+            # Optionally save the best model
+            torch.save(model.state_dict(), "best_model.pt")
+            training_state = epoch
+        else:
+            counter += 1
+        if counter > patience:
+            print(f"Early stopping at epoch {epoch}")
+            break
+        if epoch % 100 == 0:
+            print(f"Epoch {epoch}, Loss: {epoch_loss:.4f}")
+            if epoch > 1000:
+                plot_loss_history(loss_history, epoch_history)
 
 
-    return model
+        if epoch % 100 == 0:
+            # print(f"Epoch {epoch}, Loss: {loss.item()}")
+            if epoch>100:
+                plot_loss_history(loss_history, epoch_history)
 
+    print(f"Boundary Loss: {loss_boundary(model, x_b).item()}")
+    print(f"Initial Condition Loss: {loss_initial(model, x_i).item()}")
+    print(f"PDE Loss: {loss_physics(model, x_pde).item()}")
 
-def main_tuning():    # Number of trials for hyperparameter optimization
-    n_trials = 10
+    plot_loss_history(loss_history, epoch_history)
 
-    # Create a study object
-    study = optuna.create_study(direction='minimize',
-        pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=10))
-    
-    study.optimize(objective, n_trials=n_trials, timeout= None)
+    plot_model_output(model, t=0)
+    plot_model_output(model, t=0.1)
 
-    print("Best trial:")
-    trial = study.best_trial
-    print(f"Validation Loss: {trial.value}")
-    print("Best hyperparameters:")
-    for key, value in trial.params.items():
-        print(f"{key}: {value}")
-
-def main_training():
-    # choose hyperparameters
-    #{'n_hidden': 64, 'n_layers': 3, 'lr': 3.4200466989175795e-05, 'lambda_bc': 0.1, 'lambda_ic': 0.1, 'lambda_pde': 1.0}
-    n_hidden = 128
-    n_layers = 3
-    lr = 3.4200466989175795e-05
-    lambda_bc = 0.1
-    lambda_ic = 0.1
-    lambda_pde = 1.0
-
-    # other parameters
-    n_epochs = 1000
-    n_points = 50000
-    batch_size = 2024
-    start = time.time()
-    train_model(n_hidden=n_hidden, n_layers=n_layers, lr=lr,
-                lambda_bc=lambda_bc, lambda_ic=lambda_ic, lambda_pde=lambda_pde,
-                n_epochs=n_epochs, n_points=n_points, batch_size=batch_size)
+    # Save the model with name n_hidden and epochs
+    model_name = f"pinn_model_{n_hidden}_{epochs}.pt"
+    torch.save(model.state_dict(), model_name)
+    print(f"Model taken from epoch {training_state} with best loss {best_loss:.4f}")
+    print(f"Model saved as {model_name}")
     end = time.time()
-    print(f"Training time: {end - start:.2f} seconds")
+    print(f"Training completed in {(end - start)/60:.2f} minutes")
 
-if __name__ == "__main__":
-    # main_tuning()
-    main_training()

@@ -103,6 +103,18 @@ def loss_physics(model, x):
     loss = torch.mean(res_real**2 + res_imag**2)
     return loss
 
+def loss_nontrivial(model, x):
+    """
+    Non-trivial loss function to ensure the model is not just learning the trivial solution.
+    This can be a simple regularization term or a more complex constraint.
+    """
+    u = model(x)
+    u_r = u[:, 0]
+    u_i = u[:, 1]
+
+    loss = (0.5 - torch.mean(u_r**2 + u_i**2))**2  # encourage non-trivial solutions
+    return loss
+
 def potential_function(x):
     """
     Define the potential function V(x,t).
@@ -127,13 +139,14 @@ def loss_initial(model, x_i):
     loss = torch.mean(res_r**2 + res_i**2)
     return loss
 
-def total_loss(model, x_b, x_i, x_pde, lambda_bc=1.0, lambda_ic=1.0, lambda_pde=1.0):
+def total_loss(model, x_b, x_i, x_pde, lambda_bc=1.0, lambda_ic=1.0, lambda_pde=1.0, lambda_nontrivial=0.0):
     loss_bc = loss_boundary(model, x_b)
     loss_ic = loss_initial(model, x_i)
     loss_pde = loss_physics(model, x_pde)
+    loss_nontrivial_value = loss_nontrivial(model, x_pde)
 
-    sum_lambda = lambda_bc + lambda_ic + lambda_pde
-    total_loss = (lambda_bc * loss_bc + lambda_ic * loss_ic + lambda_pde * loss_pde) / sum_lambda
+    sum_lambda = lambda_bc + lambda_ic + lambda_pde + lambda_nontrivial
+    total_loss = (lambda_bc * loss_bc + lambda_ic * loss_ic + lambda_pde * loss_pde + lambda_nontrivial * loss_nontrivial_value) / sum_lambda
     return total_loss
 
 

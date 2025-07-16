@@ -29,13 +29,13 @@ class Potential:
     def __init__(self):
         self.func = ModelPotential(
             x_depth=100.0,
-            y_depth=1000.0,
-            make_asymmetric=True,
-            time_dependent=True,
-            laser_amplitude=0.4,
-            laser_omega=5.0,
-            laser_pulse_duration=1.0,
-            laser_center_time=5.0,
+            y_depth=1000.0, # make double well dominate over harmonic potential
+            make_asymmetric=True, # To assure we get a localized ground state
+            time_dependent=True, # If False, ignore the rest of the parameters
+            laser_amplitude=100,
+            laser_omega=3.0,
+            laser_pulse_duration=0.4,
+            laser_center_time=0.5,
             laser_envelope_type='gaussian',
             laser_spatial_profile_type='uniform',
             laser_charge=1.0,
@@ -44,7 +44,13 @@ class Potential:
         self.t = 0.0
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
-        return self.func(x, self.t)
+        # Check if the underlying function is time-dependent
+        if self.func.time_dependent:
+            # Time-dependent case: call with (x, t)
+            return self.func(x, self.t)
+        else:
+            # Static case: call with only x
+            return self.func(x)
 
 
 class StationarySchrodingerSolver:
@@ -443,7 +449,7 @@ class SchrodingerSolver:
                  nx: int = 64,
                  ny: int = 64,
                  T_final: float = 1.0,
-                 N_time: int = 100,
+                 dt: float = 0.01,
                  potential: Optional[Any] = None,
                  initial_condition: Optional[Callable] = None,
                  analytical_solution: Optional[Callable] = None):
@@ -453,7 +459,7 @@ class SchrodingerSolver:
         Parameters:
         - nx, ny: Number of grid points in x and y directions
         - T_final: Final time for simulation
-        - N_time: Number of time steps
+        - dt: Time step size
         - potential: Potential function (Potential class instance)
         - initial_condition: Initial condition function u₀(x,y)
         - analytical_solution: Analytical solution function u(x,y,t) for error analysis
@@ -462,8 +468,8 @@ class SchrodingerSolver:
         self.nx = int(nx)
         self.ny = int(ny)
         self.T_final = T_final
-        self.N_time = int(N_time)
-        self.dt = T_final / N_time
+        self.dt = dt
+        self.N_time = int(T_final / dt)
         
         # Create mesh and function space
         self.mesh = dolfinx.mesh.create_unit_square(
@@ -497,7 +503,7 @@ class SchrodingerSolver:
         
         # Initialize solution storage
         self.solutions: List[Any] = []  # Store solutions at each time step
-        self.times = np.linspace(0, T_final, N_time + 1)
+        self.times = np.linspace(0, T_final, self.N_time + 1)
         self.errors: List[float] = []  # Store L2 errors if analytical solution is available
         
         # Set up boundary conditions
@@ -508,7 +514,7 @@ class SchrodingerSolver:
         self.u_previous = None
         
         print(f"Schrödinger solver initialized:")
-        print(f"  Grid: {nx}×{ny}, Time steps: {N_time}, dt = {self.dt:.6f}")
+        print(f"  Grid: {nx}×{ny}, Time steps: {self.N_time + 1}, dt = {self.dt:.6f}")
         if self.potential:
             print(f"  Potential: {getattr(self.potential, 'name', 'Custom')}")
         else:
@@ -595,13 +601,14 @@ class SchrodingerSolver:
         
         return u_new
     
-    def solve(self, store_solutions: bool = True, compute_errors: bool = True):
+    def solve(self, store_solutions: bool = True, compute_errors: bool = True, save_interval: int = 1):
         """
         Execute the time integration to solve the Schrödinger equation.
         
         Parameters:
         - store_solutions: Whether to store solutions at each time step
         - compute_errors: Whether to compute L2 errors (requires analytical solution)
+        - save_interval: Interval for saving solutions and computing diagnostics (default: 1 = every step)
         
         Returns:
         - Dictionary with times, solutions (optional), and errors (optional)
@@ -611,11 +618,20 @@ class SchrodingerSolver:
         # Initialize with initial condition
         self.u_previous = self._create_initial_solution()
         
+        # Initialize storage lists
         if store_solutions:
             self.solutions = [self.u_previous.copy()]
         
         if compute_errors:
             self.errors = [self._compute_l2_error(0.0)]
+        
+        # Store times for saved solutions
+        self.saved_times = [0.0]
+        
+        # Store initial diagnostics
+        initial_norm = self._compute_l2_norm(self.u_previous)
+        if MPI.COMM_WORLD.rank == 0:
+            print(f"Initial L2 norm: {initial_norm:.6f}")
         
         # Time stepping loop with tqdm progress bar
         for n in tqdm.tqdm(range(1, self.N_time + 1), desc="Time integration", unit="step"):
@@ -624,17 +640,26 @@ class SchrodingerSolver:
             # Solve current time step
             self.u_current = self._solve_time_step(t_current)
             
-            # Store solution if requested
-            if store_solutions:
-                self.solutions.append(self.u_current.copy())
-            
-            # Compute error if requested
-            if compute_errors:
-                error = self._compute_l2_error(t_current)
-                self.errors.append(error)
-                # Update progress bar description with current error
-                if n % max(1, self.N_time // 10) == 0:
-                    tqdm.tqdm.write(f"t={t_current:.4f}, L2 error={error:.6e}")
+            # Store solution and compute diagnostics at specified interval
+            if n % save_interval == 0:
+                if store_solutions:
+                    self.solutions.append(self.u_current.copy())
+                
+                if compute_errors:
+                    error = self._compute_l2_error(t_current)
+                    self.errors.append(error)
+                
+                # Store the current time
+                self.saved_times.append(t_current)
+                
+                # Compute L2 norm of current solution
+                l2_norm = self._compute_l2_norm(self.u_current)
+                
+                # Update progress bar description with current error and norm
+                if compute_errors:
+                    tqdm.tqdm.write(f"t={t_current:.4f}, L2 error={error:.6e}, ||u||={l2_norm:.6f}")
+                else:
+                    tqdm.tqdm.write(f"t={t_current:.4f}, ||u||={l2_norm:.6f}")
             
             # Update for next iteration
             self.u_previous.x.array[:] = self.u_current.x.array[:]
@@ -642,7 +667,7 @@ class SchrodingerSolver:
         print("\nTime integration completed!")
         
         # Return results
-        results = {'times': self.times}
+        results = {'times': self.saved_times}
         if store_solutions:
             results['solutions'] = self.solutions
         if compute_errors:
@@ -672,13 +697,21 @@ class SchrodingerSolver:
         
         return l2_error
     
+    def _compute_l2_norm(self, u: fem.Function) -> float:
+        """Compute L2 norm of a function."""
+        l2_norm = np.sqrt(fem.assemble_scalar(fem.form(
+            ufl.inner(u, u) * ufl.dx
+        ))).real
+        
+        return l2_norm
+    
     def get_solution_at_time(self, t: float):
         """Get solution at a specific time (requires stored solutions)."""
         if not self.solutions:
             raise ValueError("No solutions stored. Run solve() with store_solutions=True")
         
-        # Find closest time index
-        time_idx = np.argmin(np.abs(self.times - t))
+        # Find closest time index in saved times
+        time_idx = np.argmin(np.abs(np.array(self.saved_times) - t))
         return self.solutions[time_idx]
     
     def plot_solution(self, t: float, plot_type: str = 'both', save_path: Optional[str] = None, plot_3d: bool = False):
@@ -827,7 +860,7 @@ class SchrodingerSolver:
         plt.close()
         print(f"Solution plot saved to: {save_path}")
 
-    def animate_solution(self, plot_type: str = 'abs', plot_3d: bool = False, fps: int = 1, num_max_frames: int = 11):
+    def animate_solution(self, plot_type: str = 'abs', plot_3d: bool = False, fps: int = 1):
         """
         Create an animation of the solution evolution over time.
         
@@ -835,9 +868,6 @@ class SchrodingerSolver:
         - plot_type: 'real', 'imag', or 'abs'
         - plot_3d: If True, create a 3D surface animation
         - fps: Frames per second for the animation
-        
-        Note: If there are more than 100 time steps, the animation will use
-        100 evenly distributed frames across the time interval.
         """
         if not self.solutions:
             raise ValueError("No solutions stored. Run solve() with store_solutions=True")
@@ -847,17 +877,10 @@ class SchrodingerSolver:
         # Get coordinates of degrees of freedom
         X = self.V.tabulate_dof_coordinates()
         
-        # If we have more than 100 time steps, downsample to 100 frames
-        n_frames = min(num_max_frames, len(self.solutions))
-        if len(self.solutions) > num_max_frames:
-            # Calculate indices for evenly spaced frames
-            frame_indices = np.linspace(0, len(self.solutions) - 1, n_frames, dtype=int)
-            solutions_subset = [self.solutions[i] for i in frame_indices]
-            times_subset = self.times[frame_indices]
-        else:
-            solutions_subset = self.solutions
-            times_subset = self.times
-            frame_indices = np.arange(len(self.solutions))
+        # Use all saved solutions
+        solutions_subset = self.solutions
+        times_subset = self.saved_times
+        n_frames = len(self.solutions)
             
         # Create figure and axis
         if plot_3d:
@@ -967,8 +990,6 @@ class SchrodingerSolver:
         anim.save(save_path, writer='pillow', fps=fps)
         plt.close()
         print(f"Animation saved to: {save_path} ({n_frames} frames)")
-        if len(self.solutions) > num_max_frames:
-            print(f"Note: Time steps were downsampled to {num_max_frames} frames for faster animation.")
     
     def plot_error_evolution(self, save_path: Optional[str] = None):
         """Plot the L2 error evolution over time."""
@@ -976,7 +997,7 @@ class SchrodingerSolver:
             raise ValueError("No errors computed. Run solve() with compute_errors=True")
         
         plt.figure(figsize=(10, 6))
-        plt.semilogy(self.times, self.errors, 'b-', linewidth=2, label='L2 Error')
+        plt.semilogy(self.saved_times, self.errors, 'b-', linewidth=2, label='L2 Error')
         plt.xlabel('Time')
         plt.ylabel('L2 Error')
         plt.title('Error Evolution Over Time')
@@ -1063,14 +1084,14 @@ def run_example():
         nx=64, 
         ny=64,
         T_final=1.0, 
-        N_time=10000,
+        dt=0.000002,
         potential=model_potential,
         initial_condition=initial_condition,  # Use filtered ground state
         analytical_solution=None
     )
     
     # Solve the equation
-    results = solver.solve(store_solutions=True, compute_errors=True)
+    results = solver.solve(store_solutions=True, compute_errors=True, save_interval=1000)
     
     # Plot error evolution
     solver.plot_error_evolution()

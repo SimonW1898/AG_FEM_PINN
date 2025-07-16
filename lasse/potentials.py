@@ -581,18 +581,18 @@ class ModelPotential(Potential):
 if __name__ == "__main__":
     # Test Time-Dependent Model Potential
     V = ModelPotential(
-        x_depth=1.0,
-        y_depth=1.0,
+        x_depth=100.0,
+        y_depth=1000.0,
         make_asymmetric=True,
         time_dependent=True,
-        laser_amplitude=0.4,
-        laser_omega=5.0,
+        laser_amplitude=100,
+        laser_omega=3.0,
         laser_pulse_duration=0.4,
         laser_center_time=0.5,
         laser_envelope_type='gaussian',
         laser_spatial_profile_type='uniform',
         laser_charge=1.0,
-        laser_polarization='y'
+        laser_polarization='linear_xy'
     )
     
     # Create coordinate grid

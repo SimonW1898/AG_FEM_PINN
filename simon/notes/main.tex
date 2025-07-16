@@ -526,43 +526,28 @@ which satisfies:
 
 The analytical solution at time $t = 0$ is shown in Figure \ref{fig:initial_state}. Note that in the following, we will always show the square of the absolute value of the solution, as this is the physically relevant quantity.
 
-\begin{figure}[h!]
+\begin{figure}[h]
   \centering
   \includegraphics[width=0.7\textwidth]{figures/initial_state_3d.png}
   \caption{Initial State}
   \label{fig:initial_state}
 \end{figure}
 
-We discretize the time interval $[0,T]$ with step size $\Delta t > 0$ and denote $u^n \approx u(t_n)$ at time $t_n = n\Delta t$.
+\subsubsection*{FEM Solution}
 
-We use the backward Euler method for the time derivative:
-\[
-\partial_t u(t_n) \approx \frac{u^n - u^{n-1}}{\dt}.
-\]
-
-The time-discrete weak formulation reads:
-Given $u^{n-1} \in H_0^1(\Omega; \mathbb{C})$, find $u^n \in H_0^1(\Omega; \mathbb{C})$ such that for all test functions $v \in H_0^1(\Omega; \mathbb{C})$:
-\begin{align*}
-\left( \frac{i}{\Delta t} u^n, v \right)_{L^2(\Omega)} + (\nabla u^n, \nabla v)_{L^2(\Omega)} &= \left( \frac{i}{\Delta t} u^{n-1}, v \right)_{L^2(\Omega)}.\\
-i \int_{\Omega}  u^n \, \overline{v} \, dx 
-+ \dt \int_{\Omega} \nabla u^n \cdot \nabla \overline{v} \, dx 
-&= i \int_{\Omega}  u^{n-1} \, \overline{v} \, dx.
-\end{align*}
-This is the variational equation to be solved at each time step $t_n$.
+We use the variational formulation of the Schrödinger equation derived above, by setting $V(x,t) = 0$.
 
 We summarize the parameters of the problem as follows:
 
 \begin{itemize}
-  \item Domain: $\Omega = (0,1)^2$
-  \item Time interval: $[0,T] = [0,1]$
-  \item Time step size: $\Delta t = 0.01$
+  \item Meshing: Triangular mesh with $64 \times 64$ elements
+  \item Elements: P1 Lagrange elements
+  \item Time step size: $\Delta t = 0.00001$
   \item Boundary conditions: $u = 0$ on $\partial \Omega$
   \item Initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$
   \item Potential: $V(x,t) = 0$
   \item Exact solution: $u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}$
 \end{itemize}
-
-\subsubsection*{FEM Solution}
 
 We solve the problem with the FEM and show the evolution of the solution at different times in Figure \ref{fig:free_solution_evolution}.
 
@@ -789,7 +774,7 @@ We solve the problem with the PINN and show the evolution of the solution at dif
 
 
 
-\section{Discussion and Outlook}
+\section{Outlook}
 
 We can of course only evaluate the error of FEM and PINNs for the case where we have no potential, as we know the exact solution for this case.
 

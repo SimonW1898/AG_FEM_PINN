@@ -557,7 +557,7 @@ Here we show our numerical results for the error as a function of grid spacing w
 
 Here we show that for FEMs, the error in time is of order $\mathcal{O}(\Delta t)$ for the backward Euler method and that backward Euler does not preserve the energy of the system. This could also be connected to the boundary conditions, as with the Dirichlet boundary conditions, we have implicitly also assumed von Neumann boundary conditions. Possible improvements: Crank-Nicolson method and higher order time discretization schemes, as well as using periodic boundary conditions?
 
-For PINNs, we observe that the error in time oscilates in time, which could be due to the fact that real and imaginary parts of the solution are not learned equally well.
+For PINNs, we observe that the error in time oscilates in time, which could be due to the fact that real and imaginary parts of the solution are not learned equally well. Under ideal conditions, the error should be constant in time.
 
 \subsubsection*{Experiments on the time-dependent Model Potential}
 

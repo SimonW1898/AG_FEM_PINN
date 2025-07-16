@@ -1,8 +1,28 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # Required for 3D plotting
+import os
 from typing import Union, Tuple, Callable, Optional
 from abc import ABC, abstractmethod
+
+# Global plotting configuration
+POTENTIAL_CMAP = 'viridis'
+POTENTIAL_ALPHA = 0.8
+
+# Font size configuration for consistency
+PLOT_TITLE_FONTSIZE = 14
+PLOT_LABEL_FONTSIZE = 12
+PLOT_TICK_FONTSIZE = 10
+
+# Configure matplotlib for consistent font sizes
+plt.rcParams.update({
+    'font.size': PLOT_TICK_FONTSIZE,
+    'axes.titlesize': PLOT_TITLE_FONTSIZE,
+    'axes.labelsize': PLOT_LABEL_FONTSIZE,
+    'xtick.labelsize': PLOT_TICK_FONTSIZE,
+    'ytick.labelsize': PLOT_TICK_FONTSIZE,
+    'legend.fontsize': PLOT_TICK_FONTSIZE
+})
 
 
 class LaserPulse:
@@ -230,7 +250,8 @@ class Potential(ABC):
         return X, V
     
     def plot(self, n_points: int = 100, time_range: Tuple[float, float] = (0, 1), 
-             n_frames: int = 50, plot_3d: bool = False, save_path: Optional[str] = None, **kwargs):
+             n_frames: int = 50, plot_3d: bool = False, save_path: Optional[str] = None, 
+             save_frames: bool = False, total_duration: float = 5.0, **kwargs):
         """
         Plot potential (only implemented for 2D potentials).
         
@@ -240,13 +261,15 @@ class Potential(ABC):
         - n_frames: Number of frames for animation
         - plot_3d: If True, create 3D surface plot (2D contour if False)
         - save_path: Optional path to save the plot/animation
+        - save_frames: If True, save individual frames to figures/potential_frames/
+        - total_duration: Total duration of the animation in seconds (default: 5.0)
         - **kwargs: Additional parameters for the potential
         """
         if self.time_dependent:
             if plot_3d:
-                self._plot_animated_3d(n_points, time_range, n_frames, save_path, **kwargs)
+                self._plot_animated_3d(n_points, time_range, n_frames, save_path, save_frames, total_duration, **kwargs)
             else:
-                self._plot_animated(n_points, time_range, n_frames, save_path, **kwargs)
+                self._plot_animated(n_points, time_range, n_frames, save_path, save_frames, **kwargs)
         else:
             self._plot_static(n_points, save_path, **kwargs)
     
@@ -265,7 +288,7 @@ class Potential(ABC):
         
         # Contour plot
         ax1 = fig.add_subplot(121)
-        contour = ax1.contourf(X1, X2, V, levels=20, cmap='viridis')
+        contour = ax1.contourf(X1, X2, V, levels=20, cmap=POTENTIAL_CMAP)
         ax1.set_xlabel('x')
         ax1.set_ylabel('y')
         ax1.set_title(f'{self.name} Potential (2D Contour)')
@@ -273,11 +296,12 @@ class Potential(ABC):
         
         # 3D surface plot
         ax2 = fig.add_subplot(122, projection='3d')
-        surf = ax2.plot_surface(X1, X2, V, cmap='viridis', alpha=0.8)
+        surf = ax2.plot_surface(X1, X2, V, cmap=POTENTIAL_CMAP, alpha=POTENTIAL_ALPHA)
         ax2.set_xlabel('x')
         ax2.set_ylabel('y')
         ax2.set_zlabel('V(x,y)')
         ax2.set_title(f'{self.name} Potential (3D Surface)')
+        ax2.view_init(elev=30, azim=45)
         plt.colorbar(surf, ax=ax2, shrink=0.5)
         
         plt.tight_layout()
@@ -290,9 +314,14 @@ class Potential(ABC):
             plt.show()
     
     def _plot_animated(self, n_points: int, time_range: Tuple[float, float], 
-                       n_frames: int, save_path: Optional[str] = None, **kwargs):
+                       n_frames: int, save_path: Optional[str] = None, save_frames: bool = False, **kwargs):
         """Plot animated 2D potential."""
         from matplotlib.animation import FuncAnimation
+        
+        # Create frame directory if saving frames
+        if save_frames:
+            frame_dir = 'figures/potential_frames'
+            os.makedirs(frame_dir, exist_ok=True)
         
         # Create coordinate grid using the same method as get_array
         ranges = np.array([[0, 1], [0, 1]])  # Default range
@@ -319,21 +348,32 @@ class Potential(ABC):
         # Initial plot
         V0 = self.evaluate_time_dependent(X, times[0], **kwargs)
         V0 = V0.reshape(n_points, n_points)
-        im = ax.contourf(X1, X2, V0, levels=20, cmap='viridis', vmin=vmin, vmax=vmax)
+        im = ax.contourf(X1, X2, V0, levels=20, cmap=POTENTIAL_CMAP, vmin=vmin, vmax=vmax)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_title(f'{self.name} Potential (2D, t={times[0]:.2f})')
         plt.colorbar(im, ax=ax)
+        
+        # Save initial frame if requested
+        if save_frames:
+            frame_path = os.path.join(frame_dir, f'potential_frame_{0:04d}.png')
+            plt.savefig(frame_path, dpi=300, bbox_inches='tight')
         
         def animate(frame):
             ax.clear()
             t = times[frame]
             V = self.evaluate_time_dependent(X, t, **kwargs)
             V = V.reshape(n_points, n_points)
-            im = ax.contourf(X1, X2, V, levels=20, cmap='viridis', vmin=vmin, vmax=vmax)
+            im = ax.contourf(X1, X2, V, levels=20, cmap=POTENTIAL_CMAP, vmin=vmin, vmax=vmax)
             ax.set_xlabel('x')
             ax.set_ylabel('y')
             ax.set_title(f'{self.name} Potential (2D, t={t:.2f})')
+            
+            # Save frame if requested
+            if save_frames:
+                frame_path = os.path.join(frame_dir, f'potential_frame_{frame:04d}.png')
+                plt.savefig(frame_path, dpi=300, bbox_inches='tight')
+            
             return [im]
         
         anim = FuncAnimation(fig, animate, frames=n_frames, interval=100, repeat=True, blit=True)
@@ -345,10 +385,15 @@ class Potential(ABC):
             plt.close()
         else:
             plt.show()
+        
+        if save_frames:
+            print(f"2D potential frames saved to: {frame_dir}")
+        
         return anim
     
     def _plot_animated_3d(self, n_points: int, time_range: Tuple[float, float], 
-                          n_frames: int, save_path: Optional[str] = None, **kwargs):
+                          n_frames: int, save_path: Optional[str] = None, save_frames: bool = False, 
+                          total_duration: float = 5.0, **kwargs):
         """Plot animated 3D surface potential."""
         from matplotlib.animation import FuncAnimation
         
@@ -366,8 +411,12 @@ class Potential(ABC):
         
         times = np.linspace(time_range[0], time_range[1], n_frames)
         
-        fig = plt.figure(figsize=(10, 8))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection='3d')
+        
+        # Calculate frame rate to achieve desired total duration
+        fps = n_frames / total_duration
+        interval_ms = 1000 / fps  # Convert to milliseconds for matplotlib
         
         # Calculate V range for consistent z-axis limits
         V_all = []
@@ -378,50 +427,67 @@ class Potential(ABC):
         print(f"3D Animation: V range [{vmin:.4f}, {vmax:.4f}]")
         print(f"3D Animation: Using {len(X_coords)} points")
         
-        # Initial surface plot using plot_trisurf (like in schroedinger.py)
+        # Initial surface plot using plot_trisurf with consistent settings
         V0 = self.evaluate_time_dependent(X, times[0], **kwargs)
         print(f"3D Animation: Initial V0 shape: {V0.shape}, min: {V0.min():.4f}, max: {V0.max():.4f}")
         
-        surf = ax.plot_trisurf(X_coords, Y_coords, V0, cmap='viridis', alpha=0.8, 
+        surf = ax.plot_trisurf(X_coords, Y_coords, V0, cmap=POTENTIAL_CMAP, alpha=POTENTIAL_ALPHA, 
                               linewidth=0, antialiased=True)
         
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('V(x,y,t)')
-        ax.set_title(f'{self.name} Potential (3D, t={times[0]:.2f})')
+        ax.set_title(f'{self.name} Potential (t = {times[0]:.4f})')
         ax.set_zlim(vmin, vmax)
         
-        # Add colorbar
-        plt.colorbar(surf, ax=ax, shrink=0.5)
+        # Set consistent view angle
+        ax.view_init(elev=30, azim=45)
+        
+        # Create frame directory if saving frames
+        if save_frames:
+            frame_dir = 'figures/potential_frames'
+            os.makedirs(frame_dir, exist_ok=True)
         
         def animate(frame):
             ax.clear()
             t = times[frame]
             V = self.evaluate_time_dependent(X, t, **kwargs)
             
-            surf = ax.plot_trisurf(X_coords, Y_coords, V, cmap='viridis', alpha=0.8,
+            surf = ax.plot_trisurf(X_coords, Y_coords, V, cmap=POTENTIAL_CMAP, alpha=POTENTIAL_ALPHA,
                                   linewidth=0, antialiased=True)
             
             ax.set_xlabel('x')
             ax.set_ylabel('y')
             ax.set_zlabel('V(x,y,t)')
-            ax.set_title(f'{self.name} Potential (3D, t={t:.2f})')
+            ax.set_title(f'{self.name} Potential (t = {t:.4f})')
             ax.set_zlim(vmin, vmax)
             
             # Keep the same view angle
             ax.view_init(elev=30, azim=45)
             
+            # Apply consistent layout for animation frames
+            ax.set_box_aspect(None, zoom=0.85)
+            
+            # Save frame if requested
+            if save_frames:
+                frame_path = os.path.join(frame_dir, f'potential_frame_{frame:04d}.png')
+                plt.savefig(frame_path, dpi=300, bbox_inches='tight')
+            
             return [surf]
         
-        anim = FuncAnimation(fig, animate, frames=n_frames, interval=100, repeat=True, blit=True)
+        anim = FuncAnimation(fig, animate, frames=n_frames, interval=interval_ms, repeat=True, blit=True)
         
         if save_path:
             # Save animation as GIF
-            anim.save(save_path, writer='pillow', fps=5)
-            print(f"3D animation saved to: {save_path}")
+            anim.save(save_path, writer='pillow', fps=int(fps))
+            print(f"3D animation saved to: {save_path} ({n_frames} frames, {fps:.1f} fps, {total_duration}s duration)")
             plt.close()
         else:
             plt.show()
+        
+        if save_frames:
+            print(f"3D potential frames saved to: {frame_dir}")
+        
         return anim
     
     def evaluate_time_dependent(self, x: np.ndarray, t: Union[float, np.ndarray], **kwargs) -> np.ndarray:
@@ -529,7 +595,7 @@ class DoubleWell(Potential):
         return depth * 32 * np.sum(f(x), axis=0)
 
 
-class ModelPotential(Potential):
+class ModelPotentialOld(Potential):
     """
     Model potential formed by combining 1D harmonic in x-direction and 1D double well in y-direction.
     V(x) = V_harmonic(x_1) + V_double_well(x_2)
@@ -576,7 +642,7 @@ class ModelPotential(Potential):
         
         return V_harmonic_x + V_double_well_y + self.x_depth + self.y_depth
 
-class ModelPotential2(Potential):
+class ModelPotential(Potential):
     """
     Model potential formed by combining 1D harmonic in x-direction and 1D double well in y-direction.
     V(x) = V_harmonic(x_1) + V_double_well(x_2)

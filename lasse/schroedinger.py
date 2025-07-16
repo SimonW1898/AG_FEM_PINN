@@ -23,23 +23,38 @@ from slepc4py import SLEPc
 import matplotlib.pyplot as plt
 from typing import Callable, Optional, Union, Tuple, List, Any
 from abc import ABC, abstractmethod
-from potentials import ModelPotential
+from potentials import ModelPotential, ModelPotential2
 
 class Potential:
     def __init__(self):
-        self.func = ModelPotential(
-            x_depth=100.0,
-            y_depth=1000.0, # make double well dominate over harmonic potential
-            make_asymmetric=True, # To assure we get a localized ground state
+        # self.func = ModelPotential(
+        #     x_depth=200.0,
+        #     y_depth=300.0, # make double well dominate over harmonic potential
+        #     make_asymmetric=True, # To assure we get a localized ground state
+        #     time_dependent=True, # If False, ignore the rest of the parameters
+        #     laser_amplitude=500,
+        #     laser_omega=5.0,
+        #     laser_pulse_duration=0.4,
+        #     laser_center_time=0.5,
+        #     laser_envelope_type='gaussian',
+        #     laser_spatial_profile_type='uniform',
+        #     laser_charge=1.0,
+        #     laser_polarization='linear_xy' # y: make only double well wiggle
+        # )
+        self.func = ModelPotential2(
+            a=5000.0,
+            b=100000.0,
+            c=20000.0,
+            make_asymmetric=True,
             time_dependent=True, # If False, ignore the rest of the parameters
-            laser_amplitude=100,
-            laser_omega=3.0,
+            laser_amplitude=5000,
+            laser_omega=5.0,
             laser_pulse_duration=0.4,
             laser_center_time=0.5,
             laser_envelope_type='gaussian',
             laser_spatial_profile_type='uniform',
             laser_charge=1.0,
-            laser_polarization='linear_xy'
+            laser_polarization='linear_xy' # y: make only double well wiggle
         )
         self.t = 0.0
 
@@ -601,7 +616,7 @@ class SchrodingerSolver:
         
         return u_new
     
-    def solve(self, store_solutions: bool = True, compute_errors: bool = True, save_interval: int = 1):
+    def solve(self, store_solutions: bool = True, compute_errors: bool = True, save_interval: int = 1000):
         """
         Execute the time integration to solve the Schrödinger equation.
         
@@ -714,15 +729,16 @@ class SchrodingerSolver:
         time_idx = np.argmin(np.abs(np.array(self.saved_times) - t))
         return self.solutions[time_idx]
     
-    def plot_solution(self, t: float, plot_type: str = 'both', save_path: Optional[str] = None, plot_3d: bool = False):
+    def plot_solution(self, t: float, plot_type: str = 'both', save_path: Optional[str] = None, plot_3d: bool = False, show: bool = True):
         """
         Plot the numerical and analytical solutions at a given time using matplotlib.
         
         Parameters:
         - t: Time at which to plot the solution
         - plot_type: 'both', 'real', 'imag', or 'abs'
-        - save_path: Optional path to save the plot (will be placed in figures/ directory)
+        - save_path: Optional path to save the plot
         - plot_3d: If True, create a 3D surface plot
+        - show: Whether to display the plot (default: True)
         """
         # Get solution at time t
         u_solution = self.get_solution_at_time(t)
@@ -856,18 +872,23 @@ class SchrodingerSolver:
                 if save_path is None:
                     save_path = f'figures/solution_{plot_type}_t{t:.4f}.png'
         
-        plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
-        plt.close()
-        print(f"Solution plot saved to: {save_path}")
+        if save_path:
+            plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
+            print(f"Solution plot saved to: {save_path}")
+        if show:
+            plt.show()
+        else:
+            plt.close()
 
-    def animate_solution(self, plot_type: str = 'abs', plot_3d: bool = False, fps: int = 1):
+    def animate_solution(self, plot_type: str = 'abs', plot_3d: bool = False, total_duration: float = 5.0, save_path: Optional[str] = None):
         """
         Create an animation of the solution evolution over time.
         
         Parameters:
         - plot_type: 'real', 'imag', or 'abs'
         - plot_3d: If True, create a 3D surface animation
-        - fps: Frames per second for the animation
+        - total_duration: Total duration of the animation in seconds (default: 5.0)
+        - save_path: Optional path to save the animation
         """
         if not self.solutions:
             raise ValueError("No solutions stored. Run solve() with store_solutions=True")
@@ -881,6 +902,10 @@ class SchrodingerSolver:
         solutions_subset = self.solutions
         times_subset = self.saved_times
         n_frames = len(self.solutions)
+        
+        # Calculate frame rate to achieve desired total duration
+        fps = n_frames / total_duration
+        interval_ms = 1000 / fps  # Convert to milliseconds for matplotlib
             
         # Create figure and axis
         if plot_3d:
@@ -983,13 +1008,14 @@ class SchrodingerSolver:
         
         # Create animation
         anim = animation.FuncAnimation(fig, update, frames=n_frames,
-                                     interval=1000/fps, blit=True)
+                                     interval=interval_ms, blit=True)
         
         # Save animation
-        save_path = f'figures/solution_animation_{plot_type}_{"3d" if plot_3d else "2d"}.gif'
+        if save_path is None:
+            save_path = f'figures/solution_animation_{plot_type}_{"3d" if plot_3d else "2d"}.gif'
         anim.save(save_path, writer='pillow', fps=fps)
         plt.close()
-        print(f"Animation saved to: {save_path} ({n_frames} frames)")
+        print(f"Animation saved to: {save_path} ({n_frames} frames, {fps:.1f} fps, {total_duration}s duration)")
     
     def plot_error_evolution(self, save_path: Optional[str] = None):
         """Plot the L2 error evolution over time."""
@@ -1010,45 +1036,19 @@ class SchrodingerSolver:
         plt.savefig(save_path, format='png', dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Error evolution plot saved to: {save_path}")
-    
-   
 
 
 def run_example():
     """Run example simulation and create visualizations."""
     print("\nRunning Schrödinger equation example...")
 
-    def step_potential(x, t):
-        return t * 0.2 if (x[0] < 0.5 and x[1] < 0.5) else 0
+    # Create potential
+    model_potential = Potential()   
 
-    def harmonic_potential(x):
-        return 100.0 * ((x[0] - 0.5)**2 + (x[1] - 0.5)**2)
+    # Set time-independent potential
+    model_potential.func.time_dependent = False
 
-    def double_well_potential(x):
-        # Implements a high step from x=0.25 to x=0.75, zero otherwise
-        # x has shape (dim, N_points)
-        # Returns an array of potentials for all points
-        high_value = 100000
-        return np.where((x[0] >= 0.25) & (x[0] <= 0.75), high_value, 0.0)
-
-    def asymmetric_double_well_potential(x):
-        # Implements a high step from x=0.25 to x=0.75, zero otherwise
-        # x has shape (dim, N_points)
-        # Returns an array of potentials for all points
-        high_value = 100000
-        return np.where((x[0] >= 0.25) & (x[0] <= 0.75), high_value, 0.0) + np.where((x[0] >= 0.25), high_value // 2, 0.0)
-
-
-    def real_double_well_potential(x):
-        return 100000 * ((x[0] - 0.5)**4 - 0.25 * (x[0] - 0.5)**2) + 0.01 *x[0]
-
-    def step_potential(x):
-        # x has shape (dim, N_points)
-        # Return an array of potentials for all points
-        return np.where((x[0] < 0.5) & (x[1] < 0.5), 1000.0, 0.0)
-
-    model_potential = Potential()
-
+    # Create stationary solver
     solver = StationarySchrodingerSolver(
         nx=64, 
         ny=64, 
@@ -1059,7 +1059,7 @@ def run_example():
     print("Solving for multiple eigenvalues...")
     max_energy = solver.estimate_energy_cutoff(safety_factor=0.2)
     eigenvalues, eigenfunctions = solver.solve_eigenvalues(
-        n_eigenvalues=6, 
+        n_eigenvalues=9, 
         max_energy=max_energy
     )
     
@@ -1067,24 +1067,35 @@ def run_example():
     solver.plot_eigenvalue_spectrum(save_path='figures/eigenvalue_spectrum.png', show=False)
     
     # Plot all eigenfunctions
-    solver.plot_all_eigenfunctions(n_modes=6, save_path='figures/all_eigenfunctions.png', show=False)
+    solver.plot_all_eigenfunctions(n_modes=9, save_path='figures/all_eigenfunctions.png', show=False)
     
     # Solve for filtered ground state and plot it
     print("Solving for filtered ground state...")
     phi0 = solver.get_filtered_ground_state()
-    solver.plot_filtered_ground_state_2d(save_path='figures/filtered_ground_state_2d.png', show=False)
-    solver.plot_filtered_ground_state_3d(save_path='figures/filtered_ground_state_3d.png', show=False)
+    solver.plot_filtered_ground_state_2d(save_path='figures/ground_state_2d.png', show=False)
+    solver.plot_filtered_ground_state_3d(save_path='figures/ground_state_3d.png', show=False)
+
+    # Plot the potential used in the simulation
+    print("\nCreating potential visualizations...")
+    model_potential.func.plot(
+        n_points=100,
+        plot_3d=True,
+        save_path='figures/potential_animation_3d.gif'
+    )
     
     # Get ground state as initial condition for time-dependent solver
     initial_condition = solver.get_ground_state_as_initial_condition()
     print(f"Ground state eigenvalue: {solver.ground_state_eigenvalue:.6f}")
+
+    # Set time-dependent potential
+    model_potential.func.time_dependent = True
     
-    # Create solver with default settings
+    # Create time-dependent solver, with the ground state as initial condition
     solver = SchrodingerSolver(
         nx=64, 
         ny=64,
         T_final=1.0, 
-        dt=0.000002,
+        dt=0.00001,
         potential=model_potential,
         initial_condition=initial_condition,  # Use filtered ground state
         analytical_solution=None
@@ -1094,18 +1105,21 @@ def run_example():
     results = solver.solve(store_solutions=True, compute_errors=True, save_interval=1000)
     
     # Plot error evolution
-    solver.plot_error_evolution()
+    solver.plot_error_evolution(save_path='figures/error_evolution.png')
     
     # Plot initial state
-    # solver.plot_solution(0.0, plot_type='both')
+    solver.plot_solution(0.0, plot_type='both', save_path='figures/initial_state_2d.png', show=False)
+    solver.plot_solution(0.0, plot_type='both', plot_3d=True, save_path='figures/initial_state_3d.png', show=False)
     
     # Plot final state in 2D and 3D
-    solver.plot_solution(solver.T_final, plot_type='abs')
-    solver.plot_solution(solver.T_final, plot_type='abs', plot_3d=True)
+    solver.plot_solution(solver.T_final, plot_type='abs', save_path='figures/final_2d.png', show=False)
+    solver.plot_solution(solver.T_final, plot_type='abs', plot_3d=True, save_path='figures/final_3d.png', show=False)
     
     # Create animations
-    solver.animate_solution(plot_type='abs', plot_3d=False)
-    solver.animate_solution(plot_type='abs', plot_3d=True)
+    solver.animate_solution(plot_type='abs', plot_3d=False, save_path='figures/animation_2d.gif')
+    solver.animate_solution(plot_type='abs', plot_3d=True, save_path='figures/animation_3d.gif')
+    
+
     
     return solver
 

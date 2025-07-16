@@ -576,6 +576,54 @@ class ModelPotential(Potential):
         
         return V_harmonic_x + V_double_well_y + self.x_depth + self.y_depth
 
+class ModelPotential2(Potential):
+    """
+    Model potential formed by combining 1D harmonic in x-direction and 1D double well in y-direction.
+    V(x) = V_harmonic(x_1) + V_double_well(x_2)
+    
+    This creates a 2D potential with harmonic confinement in x and double well structure in y.
+    """
+    
+    def __init__(self, 
+                 time_dependent: bool = False, 
+                 a: float = 1.0, 
+                 b: float = 1.0,
+                 c: float = 1.0,
+                 make_asymmetric: bool = False,
+                 **kwargs):
+        self.a = a
+        self.b = b
+        self.c = c
+        self.make_asymmetric = make_asymmetric
+        super().__init__("Model (Harmonic x + Double Well y)", time_dependent=time_dependent, **kwargs)
+    
+    def _potential_function(self, x: np.ndarray) -> np.ndarray:
+        """
+        Model potential function combining 1D harmonic and 1D double well.
+        
+        Parameters:
+        - x: Position array of shape (dim, N)
+        
+        Returns:
+        - V(x) = V_harmonic(x_1) + V_double_well(x_2)
+        - where V_harmonic(x) = a * (x - 0.5)^2
+        - and V_double_well(y) = b * (y - 0.5)^4 - c * (y - 0.5)^2
+        """
+        # 1D harmonic in x-direction (zero at x=0,1, minimum at x=0.5)
+        V_harmonic_x = self.a * (x[0] - 0.5)**2
+
+        if self.make_asymmetric:
+            V_harmonic_x += 0.01 * (x[0] - 0.5)
+        
+        # 1D double well in y-direction (zero at y=0,0.5,1, minima at y≈0.146,0.854)
+        V_double_well_y = self.b * (x[1] - 0.5)**4 - self.c * (x[1] - 0.5)**2
+
+        if self.make_asymmetric:
+            V_double_well_y += 0.01 * (x[1] - 0.5)
+        
+        V_total = V_harmonic_x + V_double_well_y
+        return V_total - np.min(V_total)
+
 
 # Example usage and testing
 if __name__ == "__main__":

@@ -468,7 +468,7 @@ The full loss over all timesteps is then
 
 \section{Experiments}
 
-\subsection*{Problem 1: Schrödinger Equation on the Unit Square}
+\subsection*{Problem 1: Free Schrödinger Equation on the Unit Square}
 
 We consider the time-dependent Schrödinger equation on the unit square $\Omega = (0,1)^2$ with homogeneous Dirichlet boundary conditions and zero potential:
 \begin{align*}
@@ -508,6 +508,8 @@ which satisfies:
   \item Exact solution: $u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}$
 \end{itemize}
 
+\subsection*{Problem 2: Schrödinger Equation with Time-Dependent Model Potential}
+
 
 \subsubsection*{Time-Discrete Weak Formulation (Backward Euler)}
 
@@ -530,8 +532,21 @@ This is the variational equation to be solved at each time step $t_n$.
 
 \section{Discussion and Outlook}
 
+We can of course only evaluate the error of FEM and PINNs for the case where we have no potential, as we know the exact solution for this case.
 
+\subsubsection*{Spacial Error Analysis}
 
+Here we show our numerical results for the error as a function of grid spacing with the FEM. We observe the expected convergence rate of $\mathcal{O}(h^2)$ for the FEM, except for very small grid spacings. For the PINNs, there is obviously no spacial error, as we dont use a grid.
+
+\subsubsection*{Time Error Analysis and Energy Preservation}
+
+Here we show that for FEMs, the error in time is of order $\mathcal{O}(\Delta t)$ for the backward Euler method and that backward Euler does not preserve the energy of the system. This could also be connected to the boundary conditions, as with the Dirichlet boundary conditions, we have implicitly also assumed von Neumann boundary conditions. Possible improvements: Crank-Nicolson method and higher order time discretization schemes, as well as using periodic boundary conditions?
+
+For PINNs, we observe that the error in time oscilates in time, which could be due to the fact that real and imaginary parts of the solution are not learned equally well.
+
+\subsubsection*{Experiments on the time-dependent Model Potential}
+
+Here we show how the solutions of FEM and PINNs on the time-dependent model potential, for which there is no exact solution. 
 
 
 

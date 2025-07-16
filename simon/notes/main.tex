@@ -114,20 +114,32 @@ The function $u(x,t)$ represents the wave function of the quantum system at posi
 
 
 \subsection*{Weak Formulation of Schrödinger's Equation}
-To derive the weak formulation of the time dependent Schrödinger equation, we multiply the equation by a test function $v(x,t) \in H_0^1(\Omega; \mathbb{C})$ and integrate over the domain $\Omega$. 
-The Sobolev space $H_0^1(\Omega; \mathbb{C})$ consists of functions that are square integrable and have square integrable weak derivatives, with the additional condition that they vanish on the boundary $\partial \Omega$.\\
+To derive the weak formulation of the time dependent Schrödinger equation, we multiply the equation by $\bar{v}$ the complex conjugate of the test function $v(x,t) \in H_0^1(\Omega; \mathbb{C})$ and integrate over the domain $\Omega$. 
+\paragraph{Sobolev Space with Complex Values}
+Let $\Omega \subset \mathbb{R}^d$ be a bounded Lipschitz domain. We define the complex Sobolev space
+\[
+H_0^1(\Omega; \mathbb{C}) := \left\{ u \in L^2(\Omega; \mathbb{C}) \ \middle| \ \nabla u \in L^2(\Omega; \mathbb{C}^d), \ u|_{\partial \Omega} = 0 \right\}.
+\]
+This space is equipped with the inner product
+\[
+\langle u, v \rangle_{H_0^1} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx,
+\]
+and the associated norm
+\[
+\|u\|_{H_0^1} := \sqrt{ \langle u, u \rangle_{H_0^1} }.
+\]
+% The Sobolev space $H_0^1(\Omega; \mathbb{C})$ consists of functions that are square integrable and have square integrable weak derivatives, with the additional condition that they vanish on the boundary $\partial \Omega$.\\
 By utilizing Greens' identity, we can transform the second order differential equation into a first order weak formulation:
 \begin{align*}
-  \int_{\Omega} \Delta u \bar{v} \, dx &= \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx - \int_{\partial \Omega} \nabla u \cdot n \bar{v} \, ds,
+  \int_{\Omega} \Delta u \bar{v} \, dx &= \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx - \int_{\partial \Omega} \nabla u \cdot n \bar{v} \, ds,\\
+  &= \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx, \quad (\text{since } u \text{ vanishes on } \partial \Omega).
 \end{align*}
+This leads to the weak formulation of the Schrödinger equation:
+\begin{align*}
+    i \int_{\Omega} \left( \partial_t u \right) \bar{v} \, dx = - \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u \bar{v} \, dx.
+\end{align*}
+We take the complex conjugate of the test function $v$ to ensure that the formulation aligns with the sesquilinear inner product in Hilber spaces like $L^2(\Omega; \mathbb{C})$ and $H_0^1(\Omega; \mathbb{C})$.
 
-Multiplying the Schrödinger equation by a test function $v(x,t) \in H_0^1(\Omega; \mathbb{C})$ and integrating over the domain $\Omega$, we obtain:
-
-\begin{equation}
-    i \int_{\Omega} \left( \partial_t u \right) \bar{v} \, dx = - \int_{\Omega} \nabla u \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u \bar{v} \, dx,
-\end{equation}
-
-where $v$ is called the test function and $\bar{v}$ is its complex conjugate, which comes from the inner product in the Sobolev space $H_0^1(\Omega; \mathbb{C})$.
 
 \subsection*{Time Integration with the Euler Method}
 The Euler method is a simple and widely used numerical method for solving  differential equations.
@@ -142,39 +154,26 @@ The backward Euler method has a remaining error of order $\mathcal{O}(\dt)$, whi
 This is sufficient for many applications, but for higher accuracy, higher order methods such as the Crank-Nicolson method or Runge-Kutta methods can be used.
 
 
-\subsection*{Weak Formulation with Time Integration}
-The weak form of the Schrödinger equation becomes:
+\subsection*{Weak Formulation with Backward Euler Method}
+The time-discrete weak form of the Schrödinger equation becomes:
 \begin{equation}
     i \int_{\Omega} \left( \frac{u^{t + \dt} - u^t}{\dt} \right) \bar{v} \, dx = - \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} \, dx + \int_{\Omega} V(x,t) u^{t+\dt} \bar{v} \, dx
 \end{equation}
-
-Rearranging, we get:
-
+By rearranging, the  weak formulation takes the form, with implicit terms on the left and explicit (known) terms on the right:
 \begin{equation}
     i \int_{\Omega} u^{t + \dt} \bar{v} - \dt \int_{\Omega}  u^{t+\dt} \bar{v} V(x,t)  \, dx + \dt \int_{\Omega} \nabla u^{t + \dt} \cdot \nabla \bar{v} = i \int_{\Omega} u^t \bar{v} \, dx ,
 \end{equation}
 
-which can be solved iteratively using a time-stepping method.
+which can be solved iteratively for $u^{t + \dt}$ in each time step.
 
 % make note in red that i describe u and v dependent of x,t and t+dt is next timestep
-Note: In the following, we will denote the dependence of $u$ and $v$ on $x$ and $t$ explicitly, while $t + \dt$ refers to the next time step.
+% Note: In the following, we will denote the dependence of $u$ and $v$ on $x$ and $t$ explicitly, while $t + \dt$ refers to the next time step.
 
-\paragraph{Sobolev Space with Complex Values}
-Let $\Omega \subset \mathbb{R}^d$ be a bounded Lipschitz domain. We define the complex Sobolev space
-\[
-H_0^1(\Omega; \mathbb{C}) := \left\{ u \in L^2(\Omega; \mathbb{C}) \ \middle| \ \nabla u \in L^2(\Omega; \mathbb{C}^d), \ u|_{\partial \Omega} = 0 \right\}.
-\]
-This space is equipped with the inner product
-\[
-\langle u, v \rangle_{H_0^1} := \int_\Omega \nabla u \cdot \nabla \overline{v} \, dx + \int_\Omega u \, \overline{v} \, dx,
-\]
-and the associated norm
-\[
-\|u\|_{H_0^1} := \sqrt{ \langle u, u \rangle_{H_0^1} }.
-\]
 
-\subsection*{Lax-Milgram Theorem for complex Problems}
 
+\subsection*{Existence and Uniqueness via the Lax-Milgram Theorem in Complex Hilbert Spaces}
+To establish the existence and uniqueness of solutions to the weak formulation of the Schrödinger equation, we can apply the Lax-Milgram theorem. 
+This theorem provides conditions under which a sesquilinear form defines a unique solution to a linear functional equation in a Hilbert space.
 \begin{theorem}
 [Lax-Milgram Theorem]
 Let $H$ be a complex Hilbert space with inner product $\langle \cdot, \cdot \rangle$ and norm $\| \cdot \|_H$. Let $a : H \times H \to \mathbb{C}$ be a sesquilinear form, i.e.,
@@ -224,7 +223,7 @@ This is a valid sesquilinear inner product because:
 \end{itemize}
 Hence, $(H_0^1(\Omega; \mathbb{C}), \langle \cdot, \cdot \rangle_{H_0^1})$ is a Hilbert space.
 
-\subsection*{Boundedness of the Sesquilinear and Linear Form.}
+\subsubsection*{Boundedness of the Sesquilinear and Linear Form.}
 
 \begin{lemma}[Boundedness of $a(u, v)$]
 Let $u, v \in H_0^1(\Omega; \mathbb{C})$, $V \in L^\infty(\Omega)$ and $\tau > 0$. Then the sesquilinear form $a(u, v)$ is bounded, i.e., there exists $M > 0$ such that

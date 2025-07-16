@@ -137,7 +137,7 @@ def loss_nontrivial(model, x):
     u_r = u[:, 0]
     u_i = u[:, 1]
 
-    loss = (10 - torch.mean(u_r**2 + u_i**2))**2  # encourage non-trivial solutions
+    loss = (0.5 - torch.mean(u_r**2 + u_i**2))**2  # encourage non-trivial solutions
     return loss
 
 
@@ -161,8 +161,8 @@ def total_loss(model, x_b, x_i, x_pde, lambda_bc=1.0, lambda_ic=1.0, lambda_pde=
     loss_pde = loss_physics(model, x_pde)
     loss_nontrivial_value = loss_nontrivial(model, x_pde)
 
-    sum_lambda = lambda_bc + lambda_ic + lambda_pde + lambda_nontrivial
-    total_loss = (lambda_bc * loss_bc + lambda_ic * loss_ic + lambda_pde * loss_pde + lambda_nontrivial * loss_nontrivial_value) / sum_lambda
+    # sum_lambda = lambda_bc + lambda_ic + lambda_pde + lambda_nontrivial
+    total_loss = (lambda_bc * loss_bc + lambda_ic * loss_ic + lambda_pde * loss_pde + lambda_nontrivial * loss_nontrivial_value)
     return total_loss
 
 
@@ -420,6 +420,7 @@ def train_model(n_hidden=128, n_layers=3, lr=1e-4,
             print(f"Boundary Loss: {loss_boundary(model, xb_batch).item():.4e}, Initial Loss: {loss_initial(model, xi_batch).item():.4e}, PDE Loss: {loss_physics(model, xpde_batch).item():.4e}, Non-trivial Loss: {loss_nontrivial(model, xpde_batch).item():.4e}")
             print("Validation Losses:")
             print(f"Boundary Loss: {loss_boundary(model, x_val_b).item():.4e}, Initial Loss: {loss_initial(model, x_val_i).item():.4e}, PDE Loss: {loss_physics(model, x_val_pde).item():.4e}, Non-trivial Loss: {loss_nontrivial(model, x_val_pde).item():.4e}\n")
+            torch.save(model.state_dict(), f"pinn_model_in_training_{epoch:04d}.pth")
 
     # Final evaluation
     model.eval()
@@ -458,7 +459,7 @@ def main_training():
     lambda_bc = 1.0
     lambda_ic = 1.0
     lambda_pde = 1.0
-    lambda_nontrivial = 1.0 
+    lambda_nontrivial = 10.0 
 
     # other parameters
     n_epochs = 500

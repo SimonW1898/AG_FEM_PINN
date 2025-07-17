@@ -23,10 +23,10 @@ dolfinx-tutorial/
 
 .png
 
-.aux
-.db_latexmk
-.fls
-.log
-.pdf
-.synctex.gz
-.loc
+**/.aux
+**/.db_latexmk
+**/.fls
+**/.log
+**/.pdf
+**/.synctex.gz
+**/.loc

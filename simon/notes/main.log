@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2023.5.15)  17 JUL 2025 01:56
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2023.5.15)  17 JUL 2025 03:28
 entering extended mode
  \write18 enabled.
  file:line:error style messages enabled.
@@ -324,143 +324,140 @@ File: figures/fem_frame_0100.png Graphic file (type png)
 <use figures/fem_frame_0100.png>
 Package pdftex.def Info: figures/fem_frame_0100.png  used on input line 613.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/2d_error_analysis.png, id=97, 1074.8958pt x 423.0204pt>
+ [12 <./figures/fem_frame_0000.png> <./figures/fem_frame_0020.png> <./figures/fem_frame_0040.png> <./figures/fem_frame_0060.png> <./figures/fem_frame_0080.png> <./figures/fem_frame_0100.png>]
+<figures/2d_error_analysis.png, id=113, 1074.8958pt x 423.0204pt>
 File: figures/2d_error_analysis.png Graphic file (type png)
 <use figures/2d_error_analysis.png>
-Package pdftex.def Info: figures/2d_error_analysis.png  used on input line 624.
+Package pdftex.def Info: figures/2d_error_analysis.png  used on input line 646.
 (pdftex.def)             Requested size: 276.00105pt x 208.53403pt.
-
-
-LaTeX Warning: `h' float specifier changed to `ht'.
-
 File: figures/2d_error_analysis.png Graphic file (type png)
 <use figures/2d_error_analysis.png>
-Package pdftex.def Info: figures/2d_error_analysis.png  used on input line 631.
+Package pdftex.def Info: figures/2d_error_analysis.png  used on input line 653.
 (pdftex.def)             Requested size: 276.00105pt x 218.51955pt.
 
+
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-<figures/pinn_frame_0000.png, id=100, 459.3963pt x 476.2593pt>
+[13 <./figures/2d_error_analysis.png>]
+<figures/pinn_frame_0000.png, id=122, 459.3963pt x 476.2593pt>
 File: figures/pinn_frame_0000.png Graphic file (type png)
 <use figures/pinn_frame_0000.png>
-Package pdftex.def Info: figures/pinn_frame_0000.png  used on input line 644.
+Package pdftex.def Info: figures/pinn_frame_0000.png  used on input line 678.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/pinn_frame_0010.png, id=102, 459.3963pt x 476.2593pt>
+<figures/pinn_frame_0010.png, id=124, 459.3963pt x 476.2593pt>
 File: figures/pinn_frame_0010.png Graphic file (type png)
 <use figures/pinn_frame_0010.png>
-Package pdftex.def Info: figures/pinn_frame_0010.png  used on input line 650.
+Package pdftex.def Info: figures/pinn_frame_0010.png  used on input line 684.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/pinn_frame_0020.png, id=104, 459.3963pt x 476.2593pt>
+<figures/pinn_frame_0020.png, id=126, 459.3963pt x 476.2593pt>
 File: figures/pinn_frame_0020.png Graphic file (type png)
 <use figures/pinn_frame_0020.png>
-Package pdftex.def Info: figures/pinn_frame_0020.png  used on input line 656.
+Package pdftex.def Info: figures/pinn_frame_0020.png  used on input line 690.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/pinn_frame_0030.png, id=106, 459.3963pt x 476.2593pt>
+<figures/pinn_frame_0030.png, id=128, 459.3963pt x 476.2593pt>
 File: figures/pinn_frame_0030.png Graphic file (type png)
 <use figures/pinn_frame_0030.png>
-Package pdftex.def Info: figures/pinn_frame_0030.png  used on input line 664.
+Package pdftex.def Info: figures/pinn_frame_0030.png  used on input line 698.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/pinn_frame_0040.png, id=108, 459.3963pt x 476.2593pt>
+<figures/pinn_frame_0040.png, id=130, 459.3963pt x 476.2593pt>
 File: figures/pinn_frame_0040.png Graphic file (type png)
 <use figures/pinn_frame_0040.png>
-Package pdftex.def Info: figures/pinn_frame_0040.png  used on input line 670.
+Package pdftex.def Info: figures/pinn_frame_0040.png  used on input line 704.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/pinn_frame_0050.png, id=110, 459.3963pt x 476.2593pt>
+<figures/pinn_frame_0050.png, id=132, 459.3963pt x 476.2593pt>
 File: figures/pinn_frame_0050.png Graphic file (type png)
 <use figures/pinn_frame_0050.png>
-Package pdftex.def Info: figures/pinn_frame_0050.png  used on input line 676.
+Package pdftex.def Info: figures/pinn_frame_0050.png  used on input line 710.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-[12 <./figures/fem_frame_0000.png> <./figures/fem_frame_0020.png> <./figures/fem_frame_0040.png> <./figures/fem_frame_0060.png> <./figures/fem_frame_0080.png> <./figures/fem_frame_0100.png>]
+
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-<figures/Figure3.pdf, id=128, 963.6pt x 542.025pt>
+[14]
+<figures/Figure3.pdf, id=138, 963.6pt x 542.025pt>
 File: figures/Figure3.pdf Graphic file (type pdf)
 <use figures/Figure3.pdf>
-Package pdftex.def Info: figures/Figure3.pdf  used on input line 691.
+Package pdftex.def Info: figures/Figure3.pdf  used on input line 730.
 (pdftex.def)             Requested size: 241.49895pt x 121.68942pt.
 
+
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-<figures/potential_frame_0000.png, id=130, 506.8536pt x 476.2593pt>
+<figures/potential_frame_0000.png, id=140, 506.8536pt x 476.2593pt>
 File: figures/potential_frame_0000.png Graphic file (type png)
 <use figures/potential_frame_0000.png>
-Package pdftex.def Info: figures/potential_frame_0000.png  used on input line 702.
+Package pdftex.def Info: figures/potential_frame_0000.png  used on input line 741.
 (pdftex.def)             Requested size: 103.50105pt x 91.43878pt.
-<figures/potential_frame_0010.png, id=132, 506.8536pt x 476.2593pt>
+<figures/potential_frame_0010.png, id=142, 506.8536pt x 476.2593pt>
 File: figures/potential_frame_0010.png Graphic file (type png)
 <use figures/potential_frame_0010.png>
-Package pdftex.def Info: figures/potential_frame_0010.png  used on input line 708.
+Package pdftex.def Info: figures/potential_frame_0010.png  used on input line 747.
 (pdftex.def)             Requested size: 103.50105pt x 91.43878pt.
-<figures/potential_frame_0020.png, id=134, 506.8536pt x 476.2593pt>
+<figures/potential_frame_0020.png, id=144, 506.8536pt x 476.2593pt>
 File: figures/potential_frame_0020.png Graphic file (type png)
 <use figures/potential_frame_0020.png>
-Package pdftex.def Info: figures/potential_frame_0020.png  used on input line 714.
+Package pdftex.def Info: figures/potential_frame_0020.png  used on input line 753.
 (pdftex.def)             Requested size: 103.50105pt x 91.43878pt.
-<figures/potential_frame_0030.png, id=136, 506.8536pt x 476.2593pt>
+<figures/potential_frame_0030.png, id=146, 506.8536pt x 476.2593pt>
 File: figures/potential_frame_0030.png Graphic file (type png)
 <use figures/potential_frame_0030.png>
-Package pdftex.def Info: figures/potential_frame_0030.png  used on input line 722.
+Package pdftex.def Info: figures/potential_frame_0030.png  used on input line 761.
 (pdftex.def)             Requested size: 103.50105pt x 91.43878pt.
-<figures/potential_frame_0040.png, id=138, 506.8536pt x 476.2593pt>
+<figures/potential_frame_0040.png, id=148, 506.8536pt x 476.2593pt>
 File: figures/potential_frame_0040.png Graphic file (type png)
 <use figures/potential_frame_0040.png>
-Package pdftex.def Info: figures/potential_frame_0040.png  used on input line 728.
+Package pdftex.def Info: figures/potential_frame_0040.png  used on input line 767.
 (pdftex.def)             Requested size: 103.50105pt x 91.43878pt.
-<figures/potential_frame_0050.png, id=140, 506.8536pt x 476.2593pt>
+<figures/potential_frame_0050.png, id=150, 506.8536pt x 476.2593pt>
 File: figures/potential_frame_0050.png Graphic file (type png)
 <use figures/potential_frame_0050.png>
-Package pdftex.def Info: figures/potential_frame_0050.png  used on input line 734.
+Package pdftex.def Info: figures/potential_frame_0050.png  used on input line 773.
 (pdftex.def)             Requested size: 103.50105pt x 91.43878pt.
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-<figures/potential_initial_state_3d.png, id=142, 459.3963pt x 476.2593pt>
+<figures/potential_initial_state_3d.png, id=152, 459.3963pt x 476.2593pt>
 File: figures/potential_initial_state_3d.png Graphic file (type png)
 <use figures/potential_initial_state_3d.png>
-Package pdftex.def Info: figures/potential_initial_state_3d.png  used on input line 746.
+Package pdftex.def Info: figures/potential_initial_state_3d.png  used on input line 785.
 (pdftex.def)             Requested size: 241.49895pt x 250.35962pt.
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-<figures/fem_potential_frame_0000.png, id=143, 459.3963pt x 476.2593pt>
+<figures/fem_potential_frame_0000.png, id=153, 459.3963pt x 476.2593pt>
 File: figures/fem_potential_frame_0000.png Graphic file (type png)
 <use figures/fem_potential_frame_0000.png>
-Package pdftex.def Info: figures/fem_potential_frame_0000.png  used on input line 757.
+Package pdftex.def Info: figures/fem_potential_frame_0000.png  used on input line 796.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/fem_potential_frame_0020.png, id=145, 459.3963pt x 476.2593pt>
+<figures/fem_potential_frame_0020.png, id=155, 459.3963pt x 476.2593pt>
 File: figures/fem_potential_frame_0020.png Graphic file (type png)
 <use figures/fem_potential_frame_0020.png>
-Package pdftex.def Info: figures/fem_potential_frame_0020.png  used on input line 763.
+Package pdftex.def Info: figures/fem_potential_frame_0020.png  used on input line 802.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/fem_potential_frame_0040.png, id=147, 459.3963pt x 476.2593pt>
+<figures/fem_potential_frame_0040.png, id=157, 459.3963pt x 476.2593pt>
 File: figures/fem_potential_frame_0040.png Graphic file (type png)
 <use figures/fem_potential_frame_0040.png>
-Package pdftex.def Info: figures/fem_potential_frame_0040.png  used on input line 769.
+Package pdftex.def Info: figures/fem_potential_frame_0040.png  used on input line 808.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/fem_potential_frame_0060.png, id=149, 459.3963pt x 476.2593pt>
+<figures/fem_potential_frame_0060.png, id=159, 459.3963pt x 476.2593pt>
 File: figures/fem_potential_frame_0060.png Graphic file (type png)
 <use figures/fem_potential_frame_0060.png>
-Package pdftex.def Info: figures/fem_potential_frame_0060.png  used on input line 777.
+Package pdftex.def Info: figures/fem_potential_frame_0060.png  used on input line 816.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/fem_potential_frame_0080.png, id=151, 459.3963pt x 476.2593pt>
+<figures/fem_potential_frame_0080.png, id=161, 459.3963pt x 476.2593pt>
 File: figures/fem_potential_frame_0080.png Graphic file (type png)
 <use figures/fem_potential_frame_0080.png>
-Package pdftex.def Info: figures/fem_potential_frame_0080.png  used on input line 783.
+Package pdftex.def Info: figures/fem_potential_frame_0080.png  used on input line 822.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
-<figures/fem_potential_frame_0100.png, id=153, 459.3963pt x 476.2593pt>
+<figures/fem_potential_frame_0100.png, id=163, 459.3963pt x 476.2593pt>
 File: figures/fem_potential_frame_0100.png Graphic file (type png)
 <use figures/fem_potential_frame_0100.png>
-Package pdftex.def Info: figures/fem_potential_frame_0100.png  used on input line 789.
+Package pdftex.def Info: figures/fem_potential_frame_0100.png  used on input line 828.
 (pdftex.def)             Requested size: 103.50105pt x 100.88878pt.
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-[13 <./figures/2d_error_analysis.png>] [14] [15 <./figures/pinn_frame_0000.png> <./figures/pinn_frame_0010.png> <./figures/pinn_frame_0020.png> <./figures/pinn_frame_0030.png> <./figures/pinn_frame_0040.png> <./figures/pinn_frame_0050.png> <./figures/Figure3.pdf>] [16 <./figures/potential_initial_state_3d.png> <./figures/potential_frame_0000.png> <./figures/potential_frame_0010.png> <./figures/potential_frame_0020.png> <./figures/potential_frame_0030.png> <./figures/potential_frame_0040.png> <./figures/potential_frame_0050.png>] [17 <./figures/fem_potential_frame_0000.png> <./figures/fem_potential_frame_0020.png> <./figures/fem_potential_frame_0040.png> <./figures/fem_potential_frame_0060.png> <./figures/fem_potential_frame_0080.png> <./figures/fem_potential_frame_0100.png>] (./main.aux)
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
- ) 
+[15 <./figures/pinn_frame_0000.png> <./figures/pinn_frame_0010.png> <./figures/pinn_frame_0020.png> <./figures/pinn_frame_0030.png> <./figures/pinn_frame_0040.png> <./figures/pinn_frame_0050.png>] [16 <./figures/Figure3.pdf>] [17 <./figures/potential_initial_state_3d.png> <./figures/potential_frame_0000.png> <./figures/potential_frame_0010.png> <./figures/potential_frame_0020.png> <./figures/potential_frame_0030.png> <./figures/potential_frame_0040.png> <./figures/potential_frame_0050.png>] [18 <./figures/fem_potential_frame_0000.png> <./figures/fem_potential_frame_0020.png> <./figures/fem_potential_frame_0040.png> <./figures/fem_potential_frame_0060.png> <./figures/fem_potential_frame_0080.png> <./figures/fem_potential_frame_0100.png>] (./main.aux) ) 
 Here is how much of TeX's memory you used:
  5371 strings out of 476025
  92556 string characters out of 5790017
@@ -468,12 +465,12 @@ Here is how much of TeX's memory you used:
  25716 multiletter control sequences out of 15000+600000
  529785 words of font info for 97 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 67i,13n,77p,986b,511s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 67i,13n,77p,986b,514s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmbxti10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1000.pfb>
-Output written on main.pdf (17 pages, 18934129 bytes).
+Output written on main.pdf (18 pages, 18937800 bytes).
 PDF statistics:
- 302 PDF objects out of 1000 (max. 8388607)
- 141 compressed objects within 2 object streams
+ 305 PDF objects out of 1000 (max. 8388607)
+ 143 compressed objects within 2 object streams
  0 named destinations out of 1000 (max. 500000)
  313 words of extra memory for PDF output out of 10000 (max. 10000000)
 

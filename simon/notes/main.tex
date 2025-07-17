@@ -488,7 +488,7 @@ The total loss functional combines all the individual losses with weighting para
 \end{align*}
 Minimizing this loss functional with respect to the neural network parameters \( \theta \) will yield a solution that approximates the Schrödinger equation while satisfying the initial and boundary conditions.
 
-\subsection*{Implementation of the Residual Loss glaub lass ich doch lieber raus}
+% \subsection*{Implementation of the Residual Loss glaub lass ich doch lieber raus}
 
 % \subsection*{Energy-Based PINN Loss via Weak Formulation}
 
@@ -520,7 +520,7 @@ To compare the performance of the FEM and PINNs, we consider the following two p
 
 \subsection*{Problem 1: Free Schrödinger Equation on the Unit Square}
 
-We consider the time-dependent Schrödinger equation on the unit square $\Omega = (0,1)^2$ with homogeneous Dirichlet boundary conditions and zero potential:
+We consider the time-dependent Schrödinger equation on the unit square $\Omega = (0,1)^2$ with homogeneous Dirichlet boundary conditions and zero potential over the time interval $[0,1]$:
 \begin{align*}
 i \, \partial_t u(x,t) &= -\Delta u(x,t), &&\text{in } \Omega \times (0,T), \\
 u(x,t) &= 0, &&\text{on } \partial \Omega \times (0,T), \\
@@ -557,7 +557,7 @@ The analytical solution at time $t = 0$ is shown in Figure \ref{fig:initial_stat
 
 \subsubsection*{FEM Solution}
 
-We use the variational formulation of the Schrödinger equation derived above, by setting $V(x,t) = 0$.
+We use the variational formulation of the Schrödinger equation derived above, by setting $V(x,t) = 0$ we obtain the weak formulation of the free Schrödinger equation.
 
 We summarize the parameters of the problem as follows:
 
@@ -565,13 +565,13 @@ We summarize the parameters of the problem as follows:
   \item Meshing: Triangular mesh with $64 \times 64$ elements
   \item Elements: P1 Lagrange elements
   \item Time step size: $\Delta t = 0.00001$
-  \item Boundary conditions: $u = 0$ on $\partial \Omega$
-  \item Initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$
-  \item Potential: $V(x,t) = 0$
-  \item Exact solution: $u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}$
+  % \item Boundary conditions: $u = 0$ on $\partial \Omega$
+  % \item Initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$
+  % \item Potential: $V(x,t) = 0$
+  % \item Exact solution: $u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}$
 \end{itemize}
 
-We solve the problem with the FEM and show the evolution of the solution at different times in Figure \ref{fig:free_solution_evolution}.
+The evolution of the solution for different time steps is shown in Figure \ref{fig:free_solution_evolution}.
 
 
 \begin{figure}[h]
@@ -617,7 +617,29 @@ We solve the problem with the FEM and show the evolution of the solution at diff
   \label{fig:free_solution_evolution}
 \end{figure}
 
-We can see that the solution is a standing wave, which is expected for the free Schrödinger equation.
+We can see that the solution is a standing wave, which is expected for the free Schrödinger equation. (stimmt das?)
+
+\subsubsection*{Error Analysis}
+
+The approximation error of the numerical solution has two components: 
+\begin{itemize}
+  \item the discretization error due to the finite element method,
+  \item the time-stepping error due to the backward Euler method.
+\end{itemize}
+We define the error vector $e_h^{(t)}$ as the difference between the numerical solution $u_h^{(t)}$ and the exact solution $u^{(t)}$ at each time step:
+\[
+e_h^{(t)} = u_h^{(t)} - u^{(t)}.
+\]
+Figure \ref{fig:2d_error_analysis} shows the $L^2$ norm of the error vector over time for different mesh sizes.
+From this plot we can see that the error increases linearly with time, which is expected for the backward Euler method.
+For finer meshes the error is smaller, as the FEM discretization error decreases and the time error remains. 
+This gets perfectly visible for the refinements $n=64, 128, 256$ where the error behaves almost the same for all resolutions.
+
+Figure \ref{fig:2d_error_analysis_2} shows the $L^2$ norm of the error vector over mesh sizes for different timesteps.
+It also shows a reference line described of order  $\mathcal{O}(h^2)$, which is the expected convergence rate for the FEM with P1 elements.
+We see that for coarser meshes the error perfectly meets the slope of the reference line.
+Again for the last three refinements $h=1/64, 1/128, 1/256$ the error does not decrease significantly anymore, which indicates again, that the time stepping error dominates the overall error.
+It also gets obvious that through error propagation the error increases with time, which is expected for the backward Euler method.
 
 \begin{figure}[h]
   \centering
@@ -634,9 +656,21 @@ We can see that the solution is a standing wave, which is expected for the free 
 \end{figure}
 
 \subsubsection*{PINN Solution}
-
-We solve the problem with the PINN and show the evolution of the solution at different times in Figure \ref{fig:free_solution_evolution_pinn}.
-
+We use the previously derived PINN loss functional to train a neural network to approximate the solution of the free Schrödinger equation, by setting the potential \( V(x,t) = 0 \) and the initial condition \( u_0(x,y) = \sin(\pi x)\sin(\pi y) \).
+Through a hyperparameter optimization we found the following parameters to work well:
+\begin{itemize}
+  \item Hidden layers: 3
+  \item Neurons per layer: 128
+  \item Activation function: Tanh
+  \item Learning rate: 0.00003
+  \item Interior collocation points: 50000
+  \item Boundary and initial collocation points: 25000 each
+  \item $\lambda_{\mathrm{PDE}} = 1.0$, $\lambda_{\mathrm{IC}} = 1.0$, $\lambda_{\mathrm{BC}} = 1.0$, $\lambda_{\mathrm{norm}} = 0$
+\end{itemize}
+The evolution of the solution computed by the PINN is shown in Figure \ref{fig:free_solution_evolution_pinn}.
+We can see that the PINN is able to approximate the initial and boundary condition, but does not show the behavior of the analytical solution.
+Instead the solution converges to the trivial solution \( u(x,y,t) = 0 \) over time, which also satisfies the PDE and the boundary conditions.
+This behaviour could not be resolved by adding the normalization term to the loss functional, which was intended to prevent the trivial solution.
 \begin{figure}[h]
   \centering
   \begin{subfigure}[b]{0.3\textwidth}
@@ -681,6 +715,11 @@ We solve the problem with the PINN and show the evolution of the solution at dif
 \end{figure}
 
 \subsubsection*{Comparison of FEM and PINN}
+Finite Element Methods have the advantage of a well-established theory with which the convergence and stability of the solution can be guaranteed.
+As well as the desired accuracy can be achieved by refining the mesh and the time step size.
+Contrary to PINNs, where many different hyperparameters have an influence on the solution and therefore the accuracy. 
+Additionally in this case the PINN is not capable of approximating the analytical solution, which is a major drawback.
+We aim to resolve this problem to have the ability to compare the solutions of both methods.
 
 \subsection*{Problem 2: Schrödinger Equation with Time-Dependent Model Potential}
 

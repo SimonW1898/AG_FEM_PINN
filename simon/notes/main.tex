@@ -97,7 +97,8 @@ Through this dual lens, the report aims to highlight both the challenges and opp
 
 \subsection*{Model Problem: Schrödinger Equation}
 
-The Schrödinger equation is a second-order partial differential equation that describes the time evolution of a quantum system, represented by its wave function. \\
+The Schrödinger equation is a second-order partial differential equation that describes the time evolution of a quantum system, represented by its wave function.
+
 Let $\Omega \subset \mathbb{R}^n$ be a bounded Lipschitz domain and let $V : \Omega \times [0,T] \to \mathbb{R}$ be a given potential. We say that a function
 \[
 u : \Omega \times [0,T] \to \mathbb{C}
@@ -677,10 +678,7 @@ Through a hyperparameter optimization we found the following parameters to work 
   \item $\lambda_{\mathrm{PDE}} = 1.0$, $\lambda_{\mathrm{IC}} = 1.0$, $\lambda_{\mathrm{BC}} = 1.0$, $\lambda_{\mathrm{norm}} = 0$
 \end{itemize}
 
-The evolution of the model prediction computed by the PINN is shown in Figure \ref{fig:free_solution_evolution_pinn}.
-We can see that the PINN is able to approximate the initial and boundary condition well, but does not show the constant behavior of the analytical solution over time.
-Instead, the solution converges to the trivial solution \( u(x,t) = 0 \) over time, which formally satisfies the PDE and boundary conditions but is physically uninformative.
-This behavior could not be resolved by adding the normalization term to the loss functional, which was intended to prevent the trivial solution.
+The evolution of the model prediction computed by the PINN is shown in Figure \ref{fig:free_solution_evolution_pinn}. We can see that the PINN is able to approximate the initial and boundary condition well, but does not show the constant behavior of the analytical solution over time. Instead, the solution converges to the trivial solution \( u(x,t) = 0 \) over time, which formally satisfies the PDE and boundary conditions but is physically uninformative. This behavior could not be resolved by adding the normalization term to the loss functional, which was intended to prevent the trivial solution. Note that at least in theory, $\|u(x,t)\|^2 = 1$ must hold for all $t$, as the probability of finding a particle in the domain must be 1.
 
 \begin{figure}[h]
   \centering

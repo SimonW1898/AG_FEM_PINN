@@ -532,16 +532,16 @@ u(x,0) &= u_0(x), &&\text{in } \Omega.
 
 A known exact solution is given by the separable function
 \[
-u(x,y,t) = \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t},
+u(x,y,t) = \sin(\pi x_1)\sin(\pi x_2) e^{-i 2\pi^2 t},
 \]
 which satisfies:
 \begin{itemize}
   \item The homogeneous Dirichlet boundary conditions: $u(x,t) = 0$ on $\partial \Omega$ for all $t$,
-  \item The initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$,
+  \item The initial condition: $u_0(x) = \sin(\pi x_1)\sin(\pi x_2)$,
   \item The PDE:
   \[
-  \Delta u = -2\pi^2 \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t}, \quad
-  \partial_t u = -i 2\pi^2 \sin(\pi x)\sin(\pi y) e^{-i 2\pi^2 t},
+  \Delta u = -2\pi^2 \sin(\pi x_1)\sin(\pi x_2) e^{-i 2\pi^2 t}, \quad
+  \partial_t u = -i 2\pi^2 \sin(\pi x_1)\sin(\pi x_2) e^{-i 2\pi^2 t},
   \]
   hence
   \[
@@ -549,7 +549,7 @@ which satisfies:
   \]
 \end{itemize}
 
-The analytical solution at time $t = 0$ is shown in Figure \ref{fig:initial_state}. Note that in the following, we will always show the square of the absolute value of the solution, as this is the physically relevant quantity.
+The analytical solution at time $t = 0$ is shown in Figure \ref{fig:initial_state}. Note that in the following, we will always show $|u(x,t)|^2$, as this is the physically relevant quantity.
 
 \begin{figure}[h!]
   \centering
@@ -663,7 +663,7 @@ It also gets obvious that through error propagation the error increases with tim
 
 \subsubsection*{PINN Solution}
 
-We use the previously derived PINN loss functional to train a neural network to approximate the solution of the free Schrödinger equation, by setting the potential \( V(x,t) = 0 \) and the initial condition \( u_0(x,y) = \sin(\pi x)\sin(\pi y) \).
+We use the previously derived PINN loss functional to train a neural network to approximate the solution of the free Schrödinger equation, by setting the potential \( V(x,t) = 0 \) and the initial condition \( u_0(x) = \sin(\pi x_1)\sin(\pi x_2) \).
 
 Through a hyperparameter optimization we found the following parameters to work well:
 
@@ -679,7 +679,7 @@ Through a hyperparameter optimization we found the following parameters to work 
 
 The evolution of the model prediction computed by the PINN is shown in Figure \ref{fig:free_solution_evolution_pinn}.
 We can see that the PINN is able to approximate the initial and boundary condition well, but does not show the constant behavior of the analytical solution over time.
-Instead, the solution converges to the trivial solution \( u(x,y,t) = 0 \) over time, which formally satisfies the PDE and boundary conditions but is physically uninformative.
+Instead, the solution converges to the trivial solution \( u(x,t) = 0 \) over time, which formally satisfies the PDE and boundary conditions but is physically uninformative.
 This behavior could not be resolved by adding the normalization term to the loss functional, which was intended to prevent the trivial solution.
 
 \begin{figure}[h]
@@ -743,9 +743,9 @@ where $V_0 (x)$ is a time-independent potential and $V'(x,t)$ is a time-dependen
 
 As discussed in the introduction, the time-independent potential can be approximated by combinations of harmonic and double well potentials that describe the energy profile of certain internal coordinates of a molecule. Here, we therefore choose
 \[
-  V_0 (x) = \underbrace{a x_1^2}_{V_\text{harmonic}} + \underbrace{b x_2^4 - c x_2^2}_{V_\text{double well}} \,,
+  V_0 (x) = \underbrace{a x_1^2}_{V_\text{harmonic}} + \underbrace{b x_2^4 - c x_2^2}_{V_\text{double well}} + d x_1 x_2 \,,
 \]
-where $a$, $b$ and $c$ are constants. The time-independent potential is shown in Figure \ref{fig:potential_energy_surface} a).
+where $a$, $b$, $c$ and $d$ are constants. The time-independent potential is shown in Figure \ref{fig:potential_energy_surface} a).
 
 For the time-dependent potential, we draw inspiration from photophysics, where time-dependent behavior is often introduced by interaction of electrons with light. In the simplest case, this interaction is described by the dipole approximation:
 \[
@@ -753,11 +753,11 @@ For the time-dependent potential, we draw inspiration from photophysics, where t
 \]
 where $\vec{E}(t) = (E_1(t), E_2(t))$ is the electric field of the light and $\vec{x} = (x_1, x_2)$ is the position of the electron.
 
-We will use a laser pulse with a Gaussian temporal envelope and uniform spatial profile:
+To model the time-dependent potential, we will use a laser pulse with a Gaussian temporal envelope and uniform spatial profile:
 \[
 \vec{E}(t) = E_0 \cdot \exp\left(-\frac{(t - t_c)^2}{2\sigma^2}\right) \cdot \cos(2\pi\omega t + \phi) \cdot \vec{e}_i \,,
 \]
-where $E_0$ is the peak amplitude, $t_c$ is the center time, $\sigma$ is the temporal width (related to the full width at half maximum by $\sigma = \text{FWHM}/(2\sqrt{2\ln(2)})$), $\omega$ is the angular frequency, $\phi$ is the phase, and $\vec{e}_i$ is the polarization vector in space. A simplfied profile of a laser pulse is shown in Figure \ref{fig:laser_pulse}.
+where $E_0$ is the peak amplitude, $t_c$ is the center time, $\sigma$ is the temporal width (related to the full width at half maximum by $\sigma = \text{FWHM}/(2\sqrt{2\ln(2)})$), $\omega$ is the angular frequency, $\phi$ is the phase, and $\vec{e}_i$ is the polarization vector in space. A simplfied profile of a laser pulse in time is shown in Figure \ref{fig:laser_pulse}.
 
 \begin{figure}[h]
   \centering
@@ -813,7 +813,7 @@ The time evolution of the resulting potential is shown in Figure \ref{fig:potent
 
 \subsubsection*{Initial condition}
 
-As initial condition, we use the solution of the time-independent Schrödinger equation
+For this potential, there is of course no analytical solution of the time-dependent Schrödinger equation to compare the results with. Therefore, we use the solution of the time-independent Schrödinger equation as initial condition.
 
   \begin{align*}
     - \Delta u(x) + V(x) u(x) &= E u(x), \quad x \in \Omega,\\
@@ -826,7 +826,7 @@ Following the same procedure as in the previous section, the variational formula
   \int_{\Omega} \nabla u \cdot \nabla v \mathrm{d}x + \int_{\Omega} V(x) u v \mathrm{d}x &= E \int_{\Omega} u v \mathrm{d}x, \quad \forall v \in V,
 \end{align*}
 
-which we solve with the FEM, using the same parameters as in the previous section. Here, we take the solution with smallest eigenvalue, which is the ground state of the system, and which is shown in Figure \ref{fig:initial_state_with_potential}. As we can see, the solution is localized in on of the two wells of potential.
+which we solve with the FEM, using the same parameters as in the previous section. Here, we take the solution with smallest eigenvalue $E$, which is the energetic ground state of the system, and which is shown in Figure \ref{fig:initial_state_with_potential}. As we can see, the solution is localized in on of the two wells of potential.
 
 \begin{figure}[h]
   \centering
@@ -842,7 +842,7 @@ We solve the time-dependent Schrödinger equation with the time-dependent model 
 \begin{itemize}
   \item Meshing: Triangular mesh with $64 \times 64$ elements
   \item Elements: P1 Lagrange elements
-  \item Time step size: $\Delta t = 0.00001$
+  \item Time step size: $\Delta t = 0.000001$
   % \item Boundary conditions: $u = 0$ on $\partial \Omega$
   % \item Initial condition: $u_0(x,y) = \sin(\pi x)\sin(\pi y)$
   % \item Potential: $V(x,t) = 0$
@@ -894,7 +894,7 @@ The evolution of the solution for different time steps is shown in Figure \ref{f
   \label{fig:potential_evolution_fem}
 \end{figure}
 
-While for the free Schrödinger equation, the squared absolute value of the wave function is constant over time, we see that it now evolves in time, which is due to the time-dependent potential. Furthermore, we see that the wave function is not localized in one of the two wells of potential anymore, but rather spreads over the whole domain. From a physical point of view, this is enabled by the laser pulse, which effectively lowers the potential barrier between the two wells of potential over time. Very interestingly, the wave function shows interference patterns, a phenomenon exclusively observed in quantum mechanics.
+While for the free Schrödinger equation, the squared absolute value of the wave function is constant over time, we see that it now evolves in time, which is due to the time-dependent potential. Furthermore, we see that the wave function is not localized in one of the two wells of potential anymore, but rather spreads over the whole domain. From a physical point of view, this is enabled by the laser pulse, which effectively lowers the potential barrier between the two wells of potential over time. Very interestingly, the wave function shows interference patterns, a phenomenon exclusively observed in quantum mechanics. 
 
 \newpage
 

@@ -5,6 +5,8 @@ build/
 dist/
 wheels/
 *.egg-info
+**/.DS_Store
+
 
 # Virtual environments
 .venv/lib/
@@ -21,7 +23,7 @@ dolfinx-tutorial/
 # *.pt
 
 
-.png
+# *.png
 
 **/*.aux
 **/*.db_latexmk

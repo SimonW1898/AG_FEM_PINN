@@ -127,6 +127,20 @@ def potential_function(x):
     t = x[:, 2]
     return 0.0 * (x1**2 + x2**2) * (1 + t) # set to zero for now, can be modified later
 
+
+def loss_nontrivial(model, x):
+    """
+    Non-trivial loss function to ensure the model is not just learning the trivial solution.
+    This can be a simple regularization term or a more complex constraint.
+    """
+    u = model(x)
+    u_r = u[:, 0]
+    u_i = u[:, 1]
+
+    loss = (0.5 - torch.mean(u_r**2 + u_i**2))**2  # encourage non-trivial solutions
+    return loss
+
+
 def loss_boundary(model, x_b):
     u_b = model(x_b)
     loss = torch.mean(u_b[:, 0]**2 + u_b[:, 1]**2)
@@ -141,13 +155,14 @@ def loss_initial(model, x_initial):
     loss = torch.mean(res_r**2 + res_i**2)
     return loss
 
-def total_loss(model, x_b, x_i, x_pde, lambda_bc=1.0, lambda_ic=1.0, lambda_pde=1.0):
+def total_loss(model, x_b, x_i, x_pde, lambda_bc=1.0, lambda_ic=1.0, lambda_pde=1.0, lambda_nontrivial=0.0):
     loss_bc = loss_boundary(model, x_b)
     loss_ic = loss_initial(model, x_i)
     loss_pde = loss_physics(model, x_pde)
+    loss_nontrivial_value = loss_nontrivial(model, x_pde)
 
-    sum_lambda = lambda_bc + lambda_ic + lambda_pde
-    total_loss = (lambda_bc * loss_bc + lambda_ic * loss_ic + lambda_pde * loss_pde) / sum_lambda
+    # sum_lambda = lambda_bc + lambda_ic + lambda_pde + lambda_nontrivial
+    total_loss = (lambda_bc * loss_bc + lambda_ic * loss_ic + lambda_pde * loss_pde + lambda_nontrivial * loss_nontrivial_value)
     return total_loss
 
 
@@ -344,7 +359,7 @@ def objective(trial):
     return val_loss.item()
 
 def train_model(n_hidden=128, n_layers=3, lr=1e-4,
-                lambda_bc=1.0, lambda_ic=1.0, lambda_pde=1.0,
+                lambda_bc=1.0, lambda_ic=1.0, lambda_pde=1.0, lambda_nontrivial=1.0,
                 n_epochs=500, n_points=50000, batch_size=2024,
                 activation='tanh', verbose=True):
     
@@ -388,7 +403,7 @@ def train_model(n_hidden=128, n_layers=3, lr=1e-4,
             pde_loader
         ):
             optimizer.zero_grad()
-            loss = total_loss(model, xb_batch, xi_batch, xpde_batch, lambda_bc, lambda_ic, lambda_pde)
+            loss = total_loss(model, xb_batch, xi_batch, xpde_batch, lambda_bc, lambda_ic, lambda_pde, lambda_nontrivial)
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
@@ -402,9 +417,10 @@ def train_model(n_hidden=128, n_layers=3, lr=1e-4,
             val_loss = total_loss(model, x_val_b, x_val_i, x_val_pde, lambda_bc, lambda_ic, lambda_pde)
             print(f"Epoch {epoch:4d} | Training Loss: {epoch_loss:.4e} | Validation PDE Loss: {val_loss.item():.4e}")
             print("Training Loss of one batch:")
-            print(f"Boundary Loss: {loss_boundary(model, xb_batch).item():.4e}, Initial Loss: {loss_initial(model, xi_batch).item():.4e}, PDE Loss: {loss_physics(model, xpde_batch).item():.4e}")
+            print(f"Boundary Loss: {loss_boundary(model, xb_batch).item():.4e}, Initial Loss: {loss_initial(model, xi_batch).item():.4e}, PDE Loss: {loss_physics(model, xpde_batch).item():.4e}, Non-trivial Loss: {loss_nontrivial(model, xpde_batch).item():.4e}")
             print("Validation Losses:")
-            print(f"Boundary Loss: {loss_boundary(model, x_val_b).item():.4e}, Initial Loss: {loss_initial(model, x_val_i).item():.4e}, PDE Loss: {loss_physics(model, x_val_pde).item():.4e}")
+            print(f"Boundary Loss: {loss_boundary(model, x_val_b).item():.4e}, Initial Loss: {loss_initial(model, x_val_i).item():.4e}, PDE Loss: {loss_physics(model, x_val_pde).item():.4e}, Non-trivial Loss: {loss_nontrivial(model, x_val_pde).item():.4e}\n")
+            torch.save(model.state_dict(), f"pinn_model_in_training_{epoch:04d}.pth")
 
     # Final evaluation
     model.eval()
@@ -443,6 +459,7 @@ def main_training():
     lambda_bc = 1.0
     lambda_ic = 1.0
     lambda_pde = 1.0
+    lambda_nontrivial = 10.0 
 
     # other parameters
     n_epochs = 500
@@ -450,7 +467,7 @@ def main_training():
     batch_size = 2024
     start = time.time()
     train_model(n_hidden=n_hidden, n_layers=n_layers, lr=lr,
-                lambda_bc=lambda_bc, lambda_ic=lambda_ic, lambda_pde=lambda_pde,
+                lambda_bc=lambda_bc, lambda_ic=lambda_ic, lambda_pde=lambda_pde, lambda_nontrivial=lambda_nontrivial,
                 n_epochs=n_epochs, n_points=n_points, batch_size=batch_size)
     end = time.time()
     print(f"Training time: {(end - start)/60:.2f} minutes")

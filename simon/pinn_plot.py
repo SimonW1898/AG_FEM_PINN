@@ -31,7 +31,7 @@ n_hidden = 256
 n_epochs = 5000
 
 # Load the model
-model_name = f"../pinn_model_128_3_3e-05_01_01_10.pth"
+model_name = f"/workspaces/new_repo_2/pinn_model_in_training_0100.pth"
 
 n_hidden = 128
 n_layers = 3

@@ -20,6 +20,15 @@ dolfinx-tutorial/
 # PyTorch model files
 # *.pt
 
-.gitignore
 
-*.png
+.png
+
+**/*.aux
+**/*.db_latexmk
+**/*.fls
+**/*.log
+**/*.pdf
+**/*.synctex.gz
+**/*.loc
+**/*.toc
+**/*.fdb_latexmk

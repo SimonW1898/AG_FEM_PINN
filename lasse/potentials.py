@@ -335,7 +335,7 @@ class Potential(ABC):
         X1 = X_mesh[0]  # Already in correct shape (n_points, n_points)
         X2 = X_mesh[1]  # Already in correct shape (n_points, n_points)
         
-        times = np.linspace(time_range[0], time_range[1], n_frames)
+        times = np.linspace(time_range[0], time_range[1], n_frames + 1)
         
         fig, ax = plt.subplots(figsize=(8, 6))
         
@@ -409,22 +409,23 @@ class Potential(ABC):
         X_coords = X[0]  # x coordinates
         Y_coords = X[1]  # y coordinates
         
-        times = np.linspace(time_range[0], time_range[1], n_frames)
+        # Create time array with proper alignment
+        times = np.linspace(time_range[0], time_range[1], n_frames + 1)
+        print(f"3D Animation: Time range [{times[0]:.4f}, {times[-1]:.4f}] with {len(times)} frames")
+        print(f"3D Animation: Time step size: {(times[1] - times[0]):.6f}")
+        print(f"3D Animation: Sample times: {times[::len(times)//5 if len(times) > 5 else 1]}")
         
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection='3d')
         
         # Calculate frame rate to achieve desired total duration
-        fps = n_frames / total_duration
+        fps = len(times) / total_duration
         interval_ms = 1000 / fps  # Convert to milliseconds for matplotlib
         
-        # Calculate V range for consistent z-axis limits
-        V_all = []
-        for t in times:
-            V_all.extend(self.evaluate_time_dependent(X, t, **kwargs).flatten())
-        vmin, vmax = min(V_all), max(V_all)
+        # Use hardcoded V range for consistent visualization
+        vmin_fixed, vmax_fixed = -2500.0, 7500.0  # Adjust these values as needed
         
-        print(f"3D Animation: V range [{vmin:.4f}, {vmax:.4f}]")
+        print(f"3D Animation: Using fixed V range [{vmin_fixed:.4f}, {vmax_fixed:.4f}]")
         print(f"3D Animation: Using {len(X_coords)} points")
         
         # Initial surface plot using plot_trisurf with consistent settings
@@ -437,8 +438,24 @@ class Potential(ABC):
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('V(x,y,t)')
-        ax.set_title(f'{self.name} Potential (t = {times[0]:.4f})')
-        ax.set_zlim(vmin, vmax)
+        ax.set_title(f't = {times[0]:.4f}')
+        ax.set_zlim(vmin_fixed, vmax_fixed)
+        
+        # Remove z tick labels
+        ax.set_zticklabels([])
+        
+        # Add colorbar once (outside animation function) with fixed range
+        cbar = plt.colorbar(surf, ax=ax, shrink=0.5, pad=0.0)
+        cbar.mappable.set_clim(vmin_fixed, vmax_fixed)
+        
+        # Set custom tick labels for colorbar
+        cbar.set_ticks([-2500, 0, 2500, 5000, 7500])
+        cbar.set_ticklabels(['-2500', '0', '2500', '5000', '7500'])
+        
+        # Move z-axis label to colorbar
+        # cbar.set_label('V(x,y,t)', rotation=270, labelpad=25)
+        cbar.ax.set_title('V(x,y,t)', fontsize=12, pad=15)
+        ax.set_zlabel('')  # Remove z-axis label from plot
         
         # Set consistent view angle
         ax.view_init(elev=30, azim=45)
@@ -458,9 +475,14 @@ class Potential(ABC):
             
             ax.set_xlabel('x')
             ax.set_ylabel('y')
-            ax.set_zlabel('V(x,y,t)')
-            ax.set_title(f'{self.name} Potential (t = {t:.4f})')
-            ax.set_zlim(vmin, vmax)
+            ax.set_zlabel('')  # Keep z-axis label removed
+            ax.set_title(f't = {t:.4f}')
+            
+            # Use fixed range for consistent visualization
+            ax.set_zlim(vmin_fixed, vmax_fixed)
+            
+            # Remove z tick labels
+            ax.set_zticklabels([])
             
             # Keep the same view angle
             ax.view_init(elev=30, azim=45)
@@ -475,12 +497,12 @@ class Potential(ABC):
             
             return [surf]
         
-        anim = FuncAnimation(fig, animate, frames=n_frames, interval=interval_ms, repeat=True, blit=True)
+        anim = FuncAnimation(fig, animate, frames=len(times), interval=interval_ms, repeat=True, blit=True)
         
         if save_path:
             # Save animation as GIF
             anim.save(save_path, writer='pillow', fps=int(fps))
-            print(f"3D animation saved to: {save_path} ({n_frames} frames, {fps:.1f} fps, {total_duration}s duration)")
+            print(f"3D animation saved to: {save_path} ({len(times)} frames, {fps:.1f} fps, {total_duration}s duration)")
             plt.close()
         else:
             plt.show()

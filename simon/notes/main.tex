@@ -475,7 +475,7 @@ where \( (x_j, t_j) \in \partial \Omega \times (0,T] \) and \( N_B \) is the num
 \paragraph{Normalization Loss}
 To ensure the neural network does not converge to the trivial solution \( u(x,t) = 0 \), we can add a normalization term to the loss function. 
 This term can be defined as:
-\[\mathcal{L}_{\mathrm{norm}}(\theta) = \frac{1}{N_N} \left(C - \sum_{j=1}^{N_N} \left|  u_\theta(x_j, t_j) \right|^2\right),\]
+\[\mathcal{L}_{\mathrm{norm}}(\theta) = \left(C - \frac{1}{N_N} \sum_{j=1}^{N_N} \left|  u_\theta(x_j, t_j) \right|^2\right)^2,\]
 where \( (x_j, t_j) \in \Omega \times (0,T] \) and \( N_N \) is the number of collocation points.
 This describes the difference of the $L^2$ norm of the neural network output to a constant value $C$.
 

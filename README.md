@@ -139,3 +139,6 @@ This project is designed for research and educational purposes. Contributions ar
 ## License
 
 This project is for academic research purposes. Please cite appropriately if used in publications.
+
+## Authors
+Lasse Kreimendahl and Simon Wenchel

@@ -1,40 +1,141 @@
-## Setup (for VSCode)
+# AG_FEM_PINN: On the Numerical Treatment of the Time-Dependent Schrödinger Equation in Two Dimensions
 
-1. Make sure you have the `Dev Container` extension installed in VSCode and have `Docker` installed and running.
+This repository contains implementations of both Finite Element Method (FEM) and Physics-Informed Neural Networks (PINNs) for solving the time-dependent Schrödinger equation. The project provides a comprehensive comparison between traditional numerical methods and modern machine learning approaches for quantum mechanical simulations.
 
-2. Open the command palette (Ctrl+Shift+P) and select `Dev Containers: Reopen in Container`. 
+## Overview
 
-3. After the container is created, wait for the dependencies to be installed.
+The project solves the time-dependent Schrödinger equation:
 
-4. Run the `test_installation.py` script to check if the installation is successful.
+$$i \frac{\partial u}{\partial t} = -\Delta u + V(x,t)u$$
 
-```bash
-python test_installation.py
-```
+with homogeneous Dirichlet boundary conditions on the unit square [0,1]², where:
+- $u(x,t)$ is the complex wavefunction
+- $V(x,t)$ is the potential energy function
+- $\Delta$ is the Laplacian operator
 
-**Complex mode:**
+## Main Components
 
-- If you want to run `Jupyter Notebooks`, set the kernel in the top right corner of the notebook to be `dolfinx-env (Python 3.12.3)` (real mode) or `Python 3 (DOLFINx complex)` (complex mode).
+### 1. Finite Element Method (FEM) Implementation (`fem/`)
 
-- If you want to run files in the terminal, use
+The FEM implementation provides a robust, high-accuracy numerical solution using DOLFINx.
 
-```bash
-source /usr/local/bin/dolfinx-complex-mode
-source /usr/local/bin/dolfinx-real-mode
-```
+#### Key Features:
+- **Modular Design**: Class-based architecture with `SchrodingerSolver` and `StationarySchrodingerSolver`
+- **Multiple Time Schemes**: Backward Euler time discretization
+- **Flexible Potentials**: Support for various potential functions including:
+  - Harmonic oscillator potential
+  - Double well potential
+  - Model potentials with customizable parameters
+  - Time-dependent laser pulse interactions
+- **Eigenvalue Analysis**: Stationary state solver for ground state and excited states
+- **Visualization**: 2D/3D plotting, animations, and error analysis
+- **Data Export**: Save solutions in NPZ format for post-processing
 
-to switch between real and complex builds of DOLFINx/PETSc.
+#### Main Classes:
+- `SchrodingerSolver`: Time-dependent Schrödinger equation solver
+- `StationarySchrodingerSolver`: Eigenvalue problem solver for stationary states
+- `ModelPotential`: Configurable potential energy functions
+- `LaserPulse`: Time-dependent laser-dipole coupling
 
-## Known issues
+### 2. Physics-Informed Neural Networks (PINN) Implementation (`pinns/`)
 
-- After building and opening the container, the `Jupyter` kernels might not be available.
+The PINN implementation uses PyTorch to solve the Schrödinger equation using neural networks that are trained to satisfy the underlying physics.
 
-## Workarounds and temporary fixes
+#### Key Features:
+- **Neural Network Architecture**: Fully connected networks with configurable layers and activation functions
+- **Physics-Informed Loss**: Loss function incorporating the Schrödinger equation residual
+- **Multi-Objective Training**: Balanced loss terms for PDE, boundary conditions, and initial conditions
+- **Hyperparameter Optimization**: Optuna-based automatic tuning
+- **Flexible Sampling**: Configurable point sampling strategies for training
+- **Visualization**: Real-time plotting and solution analysis
 
-**Access remote Jupyter server in your local workspace**: Run the pre-built Docker container that has the kernels installed for `JupyterLab` locally.
+#### Main Functions:
+- `PINN`: Neural network model class
+- `loss_physics`: Physics-informed loss function
+- `train_model`: Training function with configurable parameters
+- `objective`: Optuna objective function for hyperparameter tuning
 
+## Setup Instructions
+
+### Prerequisites
+- Docker installed and running
+- VS Code with Dev Container extension
+
+### Installation
+
+1. **Open in Dev Container**:
+   - Open the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P`)
+   - Select `Dev Containers: Reopen in Container`
+   - Wait for the container to build and dependencies to install
+
+2. **Test Installation**:
+   ```bash
+   python test_installation.py
+   ```
+
+3. **Jupyter Notebook Setup**:
+   - For real mode: Set kernel to `dolfinx-env (Python 3.12.3)`
+   - For complex mode: Set kernel to `Python 3 (DOLFINx complex)`
+
+4. **Terminal Mode Switching**:
+   ```bash
+   # Switch to complex mode
+   source /usr/local/bin/dolfinx-complex-mode
+   
+   # Switch to real mode  
+   source /usr/local/bin/dolfinx-real-mode
+   ```
+
+### Alternative: Local Jupyter Server
+If kernels are not available in the container:
 ```bash
 docker run --init -ti -p 8888:8888 dolfinx/lab:stable
 ```
+Then connect to the JupyterLab URL with token from the logs.
 
-It will print a `JupyterLab` URL with a token in the logs (e.g., `http://127.0.0.1:8888/lab?token=...`). In your local workspace, open the `Jupyter Notebook` interface, click on `Select Kernel` -> `Existing Jupyter Server`, and paste the URL and token. You can then select the Dolfinx kernels from the list.
+## File Structure
+
+```
+AG_FEM_PINN/
+├── fem/                    # Finite Element Method implementation
+│   ├── main_fem.py        # Main FEM solver classes
+│   ├── potentials.py      # Potential energy functions
+│   ├── analysis.py        # Analysis and plotting utilities
+│   └── figures/           # Generated FEM figures
+├── pinns/                 # Physics-Informed Neural Networks
+│   ├── main_pinn.py       # Main PINN implementation
+│   ├── pinn_plot.py       # PINN visualization utilities
+│   └── figures/           # Generated PINN figures
+├── report/                # LaTeX report and documentation
+├── test_installation.py   # Installation verification script
+└── README.md             # This file
+```
+
+## Dependencies
+
+- **DOLFINx**: Finite element library
+- **PyTorch**: Deep learning framework
+- **NumPy**: Numerical computing
+- **Matplotlib**: Plotting and visualization
+- **Optuna**: Hyperparameter optimization
+- **SLEPc**: Eigenvalue solvers
+- **PETSc**: Linear algebra backend
+
+## Known Issues
+
+- Jupyter kernels may not be available immediately after container build
+- Complex mode requires specific kernel selection
+- GPU acceleration for PINNs requires CUDA-compatible PyTorch installation
+
+## Contributing
+
+This project is designed for research and educational purposes. Contributions are welcome, particularly for:
+- Additional potential functions
+- New time integration schemes
+- Improved PINN architectures
+- Enhanced visualization capabilities
+- Performance optimizations
+
+## License
+
+This project is for academic research purposes. Please cite appropriately if used in publications.

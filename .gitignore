@@ -20,11 +20,23 @@ dolfinx-tutorial/
 
 
 # PyTorch model files
-# *.pt
+*.pt
+*.pth
 
+# Large data files
+*.npz
+*.h5
+*.hdf5
+*.xdmf
+*.bp/
 
-# *.png
+# Large figures and animations
+*.gif
+*.mp4
+*.avi
+*.mov
 
+# LaTeX auxiliary files
 **/*.aux
 **/*.db_latexmk
 **/*.fls
@@ -34,3 +46,16 @@ dolfinx-tutorial/
 **/*.loc
 **/*.toc
 **/*.fdb_latexmk
+
+# Large model files and checkpoints
+pinn_model_*.pth
+pinn_model_*.pt
+best_model.pt
+pinn_model_in_training_*.pth
+
+# Sample points files
+sample_points_*.npz
+
+# Animation frames
+**/animation_frames/
+**/potential_frames/

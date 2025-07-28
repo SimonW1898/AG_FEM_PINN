@@ -1,9 +1,0 @@
-nohup: ignoring input
-/workspaces/new_repo_2/simon/PINN_tuning.py:71: SyntaxWarning: invalid escape sequence '\m'
-  """ 
-Epoch    0 | Training Loss: 2.5002e+00 | Validation PDE Loss: 4.6193e-01
-Training Loss of one batch:
-Boundary Loss: 8.8208e-02, Initial Loss: 3.4097e-01, PDE Loss: 3.8019e-02, Non-trivial Loss: 1.6809e-01
-Validation Losses:
-Boundary Loss: 8.8611e-02, Initial Loss: 3.3529e-01, PDE Loss: 3.8025e-02, Non-trivial Loss: 1.6736e-01
-

@@ -41,7 +41,6 @@ dolfinx-tutorial/
 **/*.db_latexmk
 **/*.fls
 **/*.log
-**/*.pdf
 **/*.synctex.gz
 **/*.loc
 **/*.toc
